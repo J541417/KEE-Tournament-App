@@ -1,0 +1,16 @@
+{
+  "name": "golf-league-app",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "start": "vercel dev"
+  },
+  "dependencies": {
+    "googleapis": "^140.0.1"
+  },
+  "devDependencies": {
+    "vercel": "^34.0.0"
+  }
+}
