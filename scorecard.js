@@ -1,7 +1,9 @@
 const scorecardState = {
   token: "",
   scorecard: null,
-  currentHole: 1
+  visibleStartHole: 1,
+  showFullCard: false,
+  entryTarget: null
 };
 
 const elements = {
@@ -10,15 +12,41 @@ const elements = {
   roundDate: document.getElementById("roundDate"),
   scoringMode: document.getElementById("scoringMode"),
   loggedInPlayer: document.getElementById("loggedInPlayer"),
-  currentHoleBadge: document.getElementById("currentHoleBadge"),
-  holeNav: document.getElementById("holeNav"),
-  holeTitle: document.getElementById("holeTitle"),
-  parBadge: document.getElementById("parBadge"),
-  teamsList: document.getElementById("teamsList"),
+  scorecardAdminActions: document.getElementById("scorecardAdminActions"),
+  scorecardAdminButton: document.getElementById("scorecardAdminButton"),
+  prevHoleWindowButton: document.getElementById("prevHoleWindowButton"),
+  nextHoleWindowButton: document.getElementById("nextHoleWindowButton"),
+  toggleFullCardButton: document.getElementById("toggleFullCardButton"),
+  holeWindowLabel: document.getElementById("holeWindowLabel"),
+  scorecardTableWrapper: document.getElementById("scorecardTableWrapper"),
+  scorecardView: document.getElementById("scorecardView"),
+  scoreEntryView: document.getElementById("scoreEntryView"),
+  entryTypeLabel: document.getElementById("entryTypeLabel"),
+  entryParticipantName: document.getElementById("entryParticipantName"),
+  entryParBadge: document.getElementById("entryParBadge"),
+  entryCourseName: document.getElementById("entryCourseName"),
+  entryHoleNumber: document.getElementById("entryHoleNumber"),
+  entryCurrentScore: document.getElementById("entryCurrentScore"),
+  entryScoreInput: document.getElementById("entryScoreInput"),
+  prevEntryHoleButton: document.getElementById("prevEntryHoleButton"),
+  saveEntryScoreButton: document.getElementById("saveEntryScoreButton"),
+  nextEntryHoleButton: document.getElementById("nextEntryHoleButton"),
+  returnToScorecardButton: document.getElementById("returnToScorecardButton"),
   message: document.getElementById("message")
 };
 
 document.addEventListener("DOMContentLoaded", loadScorecard);
+
+elements.prevHoleWindowButton.addEventListener("click", () => moveHoleWindow(-5));
+elements.nextHoleWindowButton.addEventListener("click", () => moveHoleWindow(5));
+elements.toggleFullCardButton.addEventListener("click", toggleFullCard);
+elements.scorecardAdminButton.addEventListener("click", () => {
+  window.location.href = "/admin.html";
+});
+elements.prevEntryHoleButton.addEventListener("click", () => moveEntryHole(-1));
+elements.nextEntryHoleButton.addEventListener("click", () => moveEntryHole(1));
+elements.saveEntryScoreButton.addEventListener("click", saveEntryScore);
+elements.returnToScorecardButton.addEventListener("click", showScorecardView);
 
 async function loadScorecard() {
   clearMessage();
@@ -41,11 +69,9 @@ async function loadScorecard() {
     }
 
     scorecardState.scorecard = data;
-    scorecardState.currentHole = 1;
 
     renderScorecardHeader();
-    renderHoleNav();
-    renderCurrentHole();
+    renderScorecardTable();
 
     elements.scorecardBadge.textContent = "Active";
   } catch (error) {
@@ -61,169 +87,302 @@ function renderScorecardHeader() {
   elements.roundDate.textContent = formatDisplayDate(scorecard.roundDate);
   elements.scoringMode.textContent = formatScoringMode(scorecard.scoringMode);
   elements.loggedInPlayer.textContent = scorecard.loggedInPlayerName || "-";
+
+  if (scorecard.loggedInIsAdmin) {
+    elements.scorecardAdminActions.classList.remove("hidden");
+  } else {
+    elements.scorecardAdminActions.classList.add("hidden");
+  }
 }
 
-function renderHoleNav() {
-  elements.holeNav.innerHTML = "";
-
-  scorecardState.scorecard.holes.forEach((hole) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "secondary-button hole-button";
-    button.textContent = String(hole.holeNumber);
-
-    if (hole.holeNumber === scorecardState.currentHole) {
-      button.classList.add("active-hole");
-    }
-
-    button.addEventListener("click", () => {
-      scorecardState.currentHole = hole.holeNumber;
-      renderHoleNav();
-      renderCurrentHole();
-    });
-
-    elements.holeNav.appendChild(button);
-  });
-}
-
-function renderCurrentHole() {
-  clearMessage();
-
+function renderScorecardTable() {
   const scorecard = scorecardState.scorecard;
-  const holeNumber = scorecardState.currentHole;
-  const hole = scorecard.holes.find((item) => Number(item.holeNumber) === Number(holeNumber));
+  const holes = getVisibleHoles();
 
-  elements.currentHoleBadge.textContent = `Hole ${holeNumber}`;
-  elements.holeTitle.textContent = `Hole ${holeNumber}`;
-  elements.parBadge.textContent = `Par ${hole?.par || "-"}`;
+  const firstHole = holes[0]?.holeNumber || 1;
+  const lastHole = holes[holes.length - 1]?.holeNumber || 18;
 
-  elements.teamsList.innerHTML = "";
+  elements.holeWindowLabel.textContent = scorecardState.showFullCard
+    ? "Entire Card"
+    : `Holes ${firstHole}-${lastHole}`;
 
-  scorecard.teams.forEach((team) => {
-    const teamCard = document.createElement("section");
-    teamCard.className = "round-panel score-team-card";
+  elements.toggleFullCardButton.textContent = scorecardState.showFullCard
+    ? "Show Compact View"
+    : "Show Entire Card";
 
-    const header = document.createElement("div");
-    header.className = "team-header";
+  elements.prevHoleWindowButton.disabled = scorecardState.showFullCard || scorecardState.visibleStartHole <= 1;
+  elements.nextHoleWindowButton.disabled = scorecardState.showFullCard || scorecardState.visibleStartHole >= 14;
 
-    const titleBlock = document.createElement("div");
+  const table = document.createElement("table");
+  table.className = "scorecard-table";
 
-    const title = document.createElement("h2");
-    title.textContent = `Team ${team.teamNumber}`;
+  table.appendChild(buildHeaderRow(holes));
+  table.appendChild(buildParRow(holes));
 
-    const players = document.createElement("p");
-    players.className = "muted";
-    players.textContent = team.players.map((player) => player.playerName).join(", ");
-
-    titleBlock.appendChild(title);
-    titleBlock.appendChild(players);
-
-    const currentScore = getDisplayedScore(scorecard, team, holeNumber);
-
-    const scoreBadge = document.createElement("div");
-    scoreBadge.className = "team-rating";
-    scoreBadge.textContent = currentScore ? `Score: ${currentScore}` : "No Score";
-
-    header.appendChild(titleBlock);
-    header.appendChild(scoreBadge);
-    teamCard.appendChild(header);
-
-    const canScoreTeam = scorecard.scoringMode === "team" &&
-      String(team.teamId || "") === String(scorecard.loggedInTeamId || "");
-
-    if (scorecard.scoringMode === "team") {
-      const row = createTeamScoreInput(team, holeNumber, currentScore, canScoreTeam);
-      teamCard.appendChild(row);
-    }
-
-    if (scorecard.scoringMode === "individual") {
-      const individualRows = createIndividualScoreInputs(team, holeNumber);
-      individualRows.forEach((row) => teamCard.appendChild(row));
-    }
-
-    elements.teamsList.appendChild(teamCard);
-  });
-}
-
-function createTeamScoreInput(team, holeNumber, currentScore, canScoreTeam) {
-  const wrapper = document.createElement("div");
-  wrapper.className = "score-entry-row";
-
-  const input = document.createElement("input");
-  input.type = "number";
-  input.min = "1";
-  input.max = "20";
-  input.inputMode = "numeric";
-  input.value = currentScore || "";
-  input.placeholder = "Score";
-  input.disabled = !canScoreTeam;
-
-  const button = document.createElement("button");
-  button.type = "button";
-  button.textContent = canScoreTeam ? "Enter Score" : "Team Only";
-  button.disabled = !canScoreTeam;
-
-  button.addEventListener("click", () => {
-    saveScore({
-      scoringMode: "team",
-      teamId: team.teamId,
-      playerId: "",
-      holeNumber,
-      score: input.value
+  if (scorecard.scoringMode === "team") {
+    scorecard.teams.forEach((team) => {
+      table.appendChild(buildTeamScoreRow(team, holes));
     });
-  });
-
-  wrapper.appendChild(input);
-  wrapper.appendChild(button);
-
-  return wrapper;
-}
-
-function createIndividualScoreInputs(team, holeNumber) {
-  return team.players.map((player) => {
-    const wrapper = document.createElement("div");
-    wrapper.className = "score-entry-row individual-score-row";
-
-    const label = document.createElement("div");
-    label.className = "score-player-name";
-    label.textContent = player.playerName;
-
-    const scoreKey = `player:${player.playerId}:hole:${holeNumber}`;
-    const currentScore = scorecardState.scorecard.scores[scoreKey]?.score || "";
-
-    const input = document.createElement("input");
-    input.type = "number";
-    input.min = "1";
-    input.max = "20";
-    input.inputMode = "numeric";
-    input.value = currentScore;
-    input.placeholder = "Score";
-
-    const canScorePlayer =
-      String(player.playerId || "") === String(scorecardState.scorecard.loggedInPlayerId || "");
-
-    input.disabled = !canScorePlayer;
-
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = canScorePlayer ? "Enter Score" : "Player Only";
-    button.disabled = !canScorePlayer;
-
-    button.addEventListener("click", () => {
-      saveScore({
-        scoringMode: "individual",
-        teamId: team.teamId,
-        playerId: player.playerId,
-        holeNumber,
-        score: input.value
+  } else {
+    scorecard.teams.forEach((team) => {
+      team.players.forEach((player) => {
+        table.appendChild(buildIndividualScoreRow(team, player, holes));
       });
     });
+  }
 
-    wrapper.appendChild(label);
-    wrapper.appendChild(input);
-    wrapper.appendChild(button);
+  elements.scorecardTableWrapper.innerHTML = "";
+  elements.scorecardTableWrapper.appendChild(table);
+}
 
-    return wrapper;
+function buildHeaderRow(holes) {
+  const row = document.createElement("tr");
+
+  const nameCell = document.createElement("th");
+  nameCell.textContent = scorecardState.scorecard.scoringMode === "team" ? "Team" : "Player";
+  row.appendChild(nameCell);
+
+  holes.forEach((hole) => {
+    const cell = document.createElement("th");
+    cell.textContent = hole.holeNumber;
+    row.appendChild(cell);
+  });
+
+  const totalCell = document.createElement("th");
+  totalCell.textContent = "Total";
+  row.appendChild(totalCell);
+
+  const actionCell = document.createElement("th");
+  actionCell.textContent = "Score";
+  row.appendChild(actionCell);
+
+  return row;
+}
+
+function buildParRow(holes) {
+  const row = document.createElement("tr");
+  row.className = "par-row";
+
+  const labelCell = document.createElement("td");
+  labelCell.textContent = "Par";
+  row.appendChild(labelCell);
+
+  holes.forEach((hole) => {
+    const cell = document.createElement("td");
+    cell.textContent = hole.par || "-";
+    row.appendChild(cell);
+  });
+
+  const totalCell = document.createElement("td");
+  totalCell.textContent = holes.reduce((sum, hole) => sum + Number(hole.par || 0), 0);
+  row.appendChild(totalCell);
+
+  const actionCell = document.createElement("td");
+  actionCell.textContent = "";
+  row.appendChild(actionCell);
+
+  return row;
+}
+
+function buildTeamScoreRow(team, holes) {
+  const row = document.createElement("tr");
+
+  const nameCell = document.createElement("td");
+  nameCell.innerHTML = `
+    <strong>Team ${escapeHtml(team.teamNumber)}</strong>
+    <span class="scorecard-subtext">${escapeHtml(team.players.map((player) => player.playerName).join(", "))}</span>
+  `;
+  row.appendChild(nameCell);
+
+  let total = 0;
+
+  holes.forEach((hole) => {
+    const score = getTeamScore(team.teamId, hole.holeNumber);
+    const cell = document.createElement("td");
+    cell.textContent = score || "-";
+
+    if (score) {
+      total += Number(score);
+    }
+
+    row.appendChild(cell);
+  });
+
+  const totalCell = document.createElement("td");
+  totalCell.textContent = total || "-";
+  row.appendChild(totalCell);
+
+  const actionCell = document.createElement("td");
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = "Enter";
+  button.disabled = String(team.teamId || "") !== String(scorecardState.scorecard.loggedInTeamId || "");
+  button.addEventListener("click", () => {
+    openScoreEntry({
+      mode: "team",
+      team,
+      player: null,
+      holeNumber: scorecardState.visibleStartHole
+    });
+  });
+
+  actionCell.appendChild(button);
+  row.appendChild(actionCell);
+
+  return row;
+}
+
+function buildIndividualScoreRow(team, player, holes) {
+  const row = document.createElement("tr");
+
+  const nameCell = document.createElement("td");
+  nameCell.innerHTML = `
+    <strong>${escapeHtml(player.playerName)}</strong>
+    <span class="scorecard-subtext">Team ${escapeHtml(team.teamNumber)}</span>
+  `;
+  row.appendChild(nameCell);
+
+  let total = 0;
+
+  holes.forEach((hole) => {
+    const score = getIndividualScore(player.playerId, hole.holeNumber);
+    const cell = document.createElement("td");
+    cell.textContent = score || "-";
+
+    if (score) {
+      total += Number(score);
+    }
+
+    row.appendChild(cell);
+  });
+
+  const totalCell = document.createElement("td");
+  totalCell.textContent = total || "-";
+  row.appendChild(totalCell);
+
+  const actionCell = document.createElement("td");
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = "Enter";
+  button.disabled = String(player.playerId || "") !== String(scorecardState.scorecard.loggedInPlayerId || "");
+  button.addEventListener("click", () => {
+    openScoreEntry({
+      mode: "individual",
+      team,
+      player,
+      holeNumber: scorecardState.visibleStartHole
+    });
+  });
+
+  actionCell.appendChild(button);
+  row.appendChild(actionCell);
+
+  return row;
+}
+
+function getVisibleHoles() {
+  if (scorecardState.showFullCard) {
+    return scorecardState.scorecard.holes;
+  }
+
+  return scorecardState.scorecard.holes.filter((hole) =>
+    hole.holeNumber >= scorecardState.visibleStartHole &&
+    hole.holeNumber <= scorecardState.visibleStartHole + 4
+  );
+}
+
+function moveHoleWindow(direction) {
+  scorecardState.visibleStartHole += direction;
+
+  if (scorecardState.visibleStartHole < 1) {
+    scorecardState.visibleStartHole = 1;
+  }
+
+  if (scorecardState.visibleStartHole > 14) {
+    scorecardState.visibleStartHole = 14;
+  }
+
+  renderScorecardTable();
+}
+
+function toggleFullCard() {
+  scorecardState.showFullCard = !scorecardState.showFullCard;
+  renderScorecardTable();
+}
+
+function openScoreEntry({ mode, team, player, holeNumber }) {
+  clearMessage();
+
+  scorecardState.entryTarget = {
+    mode,
+    team,
+    player,
+    holeNumber
+  };
+
+  renderEntryView();
+
+  elements.scorecardView.classList.add("hidden");
+  elements.scoreEntryView.classList.remove("hidden");
+}
+
+function renderEntryView() {
+  const target = scorecardState.entryTarget;
+  const hole = scorecardState.scorecard.holes.find((item) =>
+    Number(item.holeNumber) === Number(target.holeNumber)
+  );
+
+  const participantName = target.mode === "team"
+    ? `Team ${target.team.teamNumber}`
+    : target.player.playerName;
+
+  const currentScore = target.mode === "team"
+    ? getTeamScore(target.team.teamId, target.holeNumber)
+    : getIndividualScore(target.player.playerId, target.holeNumber);
+
+  elements.entryTypeLabel.textContent = target.mode === "team" ? "Team Score" : "Individual Score";
+  elements.entryParticipantName.textContent = participantName;
+  elements.entryParBadge.textContent = `Par ${hole?.par || "-"}`;
+  elements.entryCourseName.textContent = scorecardState.scorecard.courseName || "-";
+  elements.entryHoleNumber.textContent = `Hole ${target.holeNumber}`;
+  elements.entryCurrentScore.textContent = currentScore || "-";
+  elements.entryScoreInput.value = currentScore || "";
+
+  elements.prevEntryHoleButton.disabled = target.holeNumber <= 1;
+  elements.nextEntryHoleButton.disabled = target.holeNumber >= 18;
+}
+
+function moveEntryHole(direction) {
+  if (!scorecardState.entryTarget) {
+    return;
+  }
+
+  scorecardState.entryTarget.holeNumber += direction;
+
+  if (scorecardState.entryTarget.holeNumber < 1) {
+    scorecardState.entryTarget.holeNumber = 1;
+  }
+
+  if (scorecardState.entryTarget.holeNumber > 18) {
+    scorecardState.entryTarget.holeNumber = 18;
+  }
+
+  renderEntryView();
+}
+
+async function saveEntryScore() {
+  const target = scorecardState.entryTarget;
+
+  if (!target) {
+    return;
+  }
+
+  await saveScore({
+    scoringMode: target.mode === "team" ? "team" : "individual",
+    teamId: target.team.teamId,
+    playerId: target.player?.playerId || "",
+    holeNumber: target.holeNumber,
+    score: elements.entryScoreInput.value
   });
 }
 
@@ -253,24 +412,33 @@ async function saveScore({ scoringMode, teamId, playerId, holeNumber, score }) {
       throw new Error(data.error || "Unable to save score.");
     }
 
-    showSuccess("Score saved.");
-
     await loadScorecard();
-    scorecardState.currentHole = Number(holeNumber);
-    renderHoleNav();
-    renderCurrentHole();
+
+    if (scorecardState.entryTarget) {
+      renderEntryView();
+    }
+
+    showSuccess("Score saved.");
   } catch (error) {
     showMessage(error.message || "Unable to save score.");
   }
 }
 
-function getDisplayedScore(scorecard, team, holeNumber) {
-  if (scorecard.scoringMode === "team") {
-    const key = `team:${team.teamId}:hole:${holeNumber}`;
-    return scorecard.scores[key]?.score || "";
-  }
+function showScorecardView() {
+  clearMessage();
+  elements.scoreEntryView.classList.add("hidden");
+  elements.scorecardView.classList.remove("hidden");
+  renderScorecardTable();
+}
 
-  return "";
+function getTeamScore(teamId, holeNumber) {
+  const key = `team:${teamId}:hole:${holeNumber}`;
+  return scorecardState.scorecard.scores[key]?.score || "";
+}
+
+function getIndividualScore(playerId, holeNumber) {
+  const key = `player:${playerId}:hole:${holeNumber}`;
+  return scorecardState.scorecard.scores[key]?.score || "";
 }
 
 function showMessage(text) {
@@ -314,4 +482,13 @@ function formatDisplayDate(value) {
     day: "numeric",
     year: "numeric"
   });
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
