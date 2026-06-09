@@ -301,3 +301,61 @@ button:disabled {
     width: 100%;
   }
 }
+.scorecard-card {
+  max-width: 980px;
+}
+
+.hole-nav-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.hole-nav {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 10px;
+}
+
+.hole-button {
+  padding: 12px 8px;
+  text-align: center;
+}
+
+.active-hole {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.score-team-card {
+  margin-bottom: 0;
+}
+
+.score-entry-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  margin-top: 14px;
+}
+
+.individual-score-row {
+  grid-template-columns: 1.4fr 1fr auto;
+}
+
+.score-player-name {
+  font-weight: 700;
+}
+
+@media (max-width: 700px) {
+  .hole-nav {
+    grid-template-columns: repeat(6, 1fr);
+  }
+
+  .score-entry-row,
+  .individual-score-row {
+    grid-template-columns: 1fr;
+  }
+}
