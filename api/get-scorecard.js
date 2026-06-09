@@ -1,4 +1,5 @@
 import { getDataRows, getRows, TAB_NAMES } from "../lib/googleSheets.js";
+import { isAdminValue, normalizePhone } from "../lib/playerUtils.js";
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {
@@ -16,9 +17,10 @@ export default async function handler(req, res) {
       });
     }
 
-    const [dataRows, courseRows] = await Promise.all([
+    const [dataRows, courseRows, playerRows] = await Promise.all([
       getDataRows(),
-      getRows(TAB_NAMES.COURSES)
+      getRows(TAB_NAMES.COURSES),
+      getRows(TAB_NAMES.PLAYERS)
     ]);
 
     const tokenRow = dataRows.find((row) =>
@@ -48,6 +50,16 @@ export default async function handler(req, res) {
       });
     }
 
+    const loggedInPlayerId = String(tokenRow.player_id || "").trim();
+
+    const loggedInPlayerSheetRow = playerRows.find((row) =>
+      normalizePhone(row["Phone Number"]) === loggedInPlayerId
+    );
+
+    const loggedInIsAdmin = loggedInPlayerSheetRow
+      ? isAdminValue(loggedInPlayerSheetRow.Admin)
+      : false;
+
     const courseName = String(round.course_name || "").trim();
 
     const course = courseRows.find((row) =>
@@ -71,14 +83,14 @@ export default async function handler(req, res) {
       )
       .sort((a, b) => Number(a.team_number || 0) - Number(b.team_number || 0));
 
-    const playerRows = dataRows.filter((row) =>
+    const playerAssignmentRows = dataRows.filter((row) =>
       String(row.record_type || "").trim() === "round_player" &&
       String(row.round_id || "").trim() === String(roundId || "").trim() &&
       String(row.status || "").trim().toLowerCase() === "active"
     );
 
     const teams = teamRows.map((team) => {
-      const players = playerRows
+      const players = playerAssignmentRows
         .filter((player) =>
           String(player.team_id || "").trim() === String(team.team_id || "").trim()
         )
@@ -134,9 +146,10 @@ export default async function handler(req, res) {
       roundDate: round.round_date || "",
       courseName: round.course_name || "",
       scoringMode: round.scoring_mode || "",
-      loggedInPlayerId: tokenRow.player_id || "",
+      loggedInPlayerId,
       loggedInPlayerName: tokenRow.player_name || "",
       loggedInTeamId: tokenRow.team_id || "",
+      loggedInIsAdmin,
       holes,
       teams,
       scores
