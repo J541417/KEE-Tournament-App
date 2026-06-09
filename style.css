@@ -10,6 +10,8 @@
   --danger-text: #8a1f1f;
   --notice-bg: #f8f3dc;
   --notice-text: #6a5200;
+
+  font-size: 19px;
 }
 
 * {
@@ -21,6 +23,8 @@ body {
   font-family: Arial, Helvetica, sans-serif;
   background: radial-gradient(circle at top, #ffffff 0%, var(--bg) 55%);
   color: var(--text);
+  font-size: 1rem;
+  line-height: 1.45;
 }
 
 .page-shell {
@@ -28,66 +32,72 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 28px;
 }
 
 .card {
   width: 100%;
-  max-width: 560px;
+  max-width: 680px;
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 22px;
+  border-radius: 24px;
   box-shadow: 0 20px 60px rgba(23, 33, 23, 0.12);
-  padding: 28px;
+  padding: 34px;
+}
+
+.admin-card {
+  max-width: 920px;
 }
 
 .header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 24px;
+  gap: 18px;
+  margin-bottom: 28px;
 }
 
 .eyebrow {
   margin: 0 0 4px;
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
 
 h1 {
   margin: 0;
-  font-size: 2rem;
+  font-size: 2.35rem;
+  line-height: 1.1;
 }
 
 h2 {
-  margin: 0 0 16px;
-  font-size: 1.25rem;
+  margin: 0 0 18px;
+  font-size: 1.45rem;
+  line-height: 1.2;
 }
 
 .badge {
-  padding: 8px 12px;
+  padding: 10px 14px;
   border-radius: 999px;
   background: #ecf7ef;
   color: var(--primary-dark);
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   font-weight: 700;
   white-space: nowrap;
 }
 
 .round-panel {
   border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 18px;
+  border-radius: 18px;
+  padding: 22px;
   background: #fbfdfb;
-  margin-bottom: 22px;
+  margin-bottom: 24px;
 }
 
 .round-details {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .detail-row {
@@ -95,7 +105,7 @@ h2 {
   justify-content: space-between;
   gap: 16px;
   border-bottom: 1px solid var(--line);
-  padding-bottom: 10px;
+  padding-bottom: 12px;
 }
 
 .detail-row:last-child {
@@ -108,34 +118,39 @@ h2 {
 }
 
 .lookup-form {
-  margin-top: 8px;
+  margin-top: 10px;
 }
 
-.lookup-form label {
+.lookup-form label,
+.admin-grid label,
+.team-card label {
   display: block;
   font-weight: 700;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .input-row {
   display: flex;
-  gap: 10px;
+  gap: 12px;
 }
 
-input {
+input,
+select {
   width: 100%;
   border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 13px 14px;
-  font-size: 1rem;
+  border-radius: 14px;
+  padding: 15px 16px;
+  font-size: 1.05rem;
+  background: #ffffff;
 }
 
 button {
   border: none;
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--primary);
   color: #ffffff;
-  padding: 13px 16px;
+  padding: 15px 18px;
+  font-size: 1.05rem;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
@@ -146,29 +161,39 @@ button:hover {
 }
 
 button:disabled {
-  opacity: 0.65;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
+.secondary-button {
+  background: #eef6f0;
+  color: var(--primary-dark);
+  border: 1px solid var(--line);
+}
+
+.secondary-button:hover {
+  background: #dfeee3;
+}
+
 .message {
-  margin-top: 16px;
-  padding: 12px 14px;
-  border-radius: 12px;
+  margin-top: 18px;
+  padding: 14px 16px;
+  border-radius: 14px;
   background: var(--danger-bg);
   color: var(--danger-text);
 }
 
 .notice {
-  padding: 12px 14px;
-  border-radius: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
   background: var(--notice-bg);
   color: var(--notice-text);
 }
 
 .matches {
-  margin-top: 18px;
+  margin-top: 20px;
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .match-button {
@@ -185,9 +210,52 @@ button:disabled {
 
 .match-subtitle {
   display: block;
-  margin-top: 3px;
+  margin-top: 4px;
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: 0.95rem;
+}
+
+.admin-options {
+  margin-top: 20px;
+  display: grid;
+  gap: 12px;
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.teams-container {
+  display: grid;
+  gap: 18px;
+}
+
+.team-card {
+  position: relative;
+}
+
+.team-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 12px;
+}
+
+.team-rating {
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: #ecf7ef;
+  color: var(--primary-dark);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.team-card label {
+  margin-top: 14px;
 }
 
 .muted {
@@ -198,15 +266,19 @@ button:disabled {
   display: none;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 700px) {
+  :root {
+    font-size: 18px;
+  }
+
   .page-shell {
     align-items: flex-start;
     padding: 16px;
   }
 
   .card {
-    padding: 22px;
-    border-radius: 18px;
+    padding: 24px;
+    border-radius: 20px;
   }
 
   .header {
@@ -214,6 +286,14 @@ button:disabled {
   }
 
   .input-row {
+    flex-direction: column;
+  }
+
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .team-header {
     flex-direction: column;
   }
 
