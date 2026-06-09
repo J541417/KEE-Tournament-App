@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Golf League Admin</title>
+
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <main class="page-shell">
+    <section class="card admin-card">
+      <div class="header">
+        <div>
+          <p class="eyebrow">Golf League</p>
+          <h1>Admin Panel</h1>
+        </div>
+
+        <div class="badge" id="adminStatusBadge">Locked</div>
+      </div>
+
+      <form id="loginForm" class="lookup-form">
+        <label for="adminPassword">Admin Password</label>
+
+        <div class="input-row">
+          <input
+            id="adminPassword"
+            name="adminPassword"
+            type="password"
+            autocomplete="current-password"
+            required
+          />
+
+          <button type="submit">Log In</button>
+        </div>
+      </form>
+
+      <section id="adminPanel" class="hidden">
+        <section class="round-panel">
+          <h2>Create Active Round</h2>
+
+          <div class="admin-grid">
+            <label>
+              Round Date
+              <input id="roundDate" type="date" required />
+            </label>
+
+            <label>
+              Course
+              <select id="courseSelect" required>
+                <option value="">Loading courses...</option>
+              </select>
+            </label>
+
+            <label>
+              Scoring Mode
+              <select id="scoringMode" required>
+                <option value="team">Team scoring</option>
+                <option value="individual">Individual scoring</option>
+              </select>
+            </label>
+
+            <label>
+              Number of Teams
+              <input id="teamCount" type="number" min="1" max="20" value="2" required />
+            </label>
+          </div>
+
+          <button id="buildTeamsButton" type="button">
+            Build Team Boxes
+          </button>
+        </section>
+
+        <section id="teamsContainer" class="teams-container hidden"></section>
+
+        <button id="saveRoundButton" type="button" class="hidden">
+          Set Active Round
+        </button>
+
+        <p class="muted">
+          Setting a new round will wipe all existing temporary data from the data tab, except the header row.
+        </p>
+      </section>
+
+      <section id="message" class="message hidden"></section>
+    </section>
+  </main>
+
+  <script src="/admin.js"></script>
+</body>
+</html>
