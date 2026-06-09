@@ -359,3 +359,98 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 }
+.scorecard-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  margin-top: 18px;
+}
+
+.scorecard-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 720px;
+}
+
+.scorecard-table th,
+.scorecard-table td {
+  border: 1px solid var(--line);
+  padding: 12px 10px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.scorecard-table th {
+  background: #ecf7ef;
+  color: var(--primary-dark);
+  font-weight: 800;
+}
+
+.scorecard-table td:first-child,
+.scorecard-table th:first-child {
+  text-align: left;
+  min-width: 180px;
+}
+
+.scorecard-table td:last-child,
+.scorecard-table th:last-child {
+  min-width: 110px;
+}
+
+.par-row td {
+  background: #fbfdfb;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.scorecard-subtext {
+  display: block;
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-top: 4px;
+}
+
+.scorecard-toolbar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 16px;
+  align-items: center;
+  text-align: center;
+}
+
+.full-width-button {
+  width: 100%;
+  margin-top: 14px;
+}
+
+.score-input-label {
+  display: block;
+  margin-top: 20px;
+  margin-bottom: 8px;
+  font-weight: 800;
+}
+
+.score-entry-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+@media (max-width: 700px) {
+  .scorecard-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .score-entry-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .scorecard-table {
+    min-width: 620px;
+  }
+
+  .scorecard-table th,
+  .scorecard-table td {
+    padding: 10px 8px;
+  }
+}
