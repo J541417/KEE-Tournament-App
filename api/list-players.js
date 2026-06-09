@@ -1,5 +1,10 @@
 import { getRows, TAB_NAMES } from "../lib/googleSheets.js";
-import { getLastName, normalizePhone } from "../lib/playerUtils.js";
+import {
+  getFirstName,
+  getLastName,
+  isAdminValue,
+  normalizePhone
+} from "../lib/playerUtils.js";
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {
@@ -17,14 +22,17 @@ export default async function handler(req, res) {
         const phone = normalizePhone(row["Phone Number"]);
         const rating = String(row.Rating || "").trim();
         const email = String(row.Email || "").trim();
+        const isAdmin = isAdminValue(row.Admin);
 
         return {
           playerId: phone,
           playerName: name,
+          firstName: getFirstName(name),
           lastName: getLastName(name),
           rating,
           phone,
-          email
+          email,
+          isAdmin
         };
       })
       .filter((player) => player.playerName && player.playerId)
