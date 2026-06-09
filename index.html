@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <title>Golf League</title>
+  <title>Kee Golf League</title>
 
   <link rel="stylesheet" href="/style.css" />
 </head>
@@ -14,7 +14,7 @@
       <div class="header">
         <div>
           <p class="eyebrow">Welcome to</p>
-          <h1 id="leagueName">Golf League</h1>
+          <h1 id="leagueName">Kee Golf League</h1>
         </div>
 
         <div class="badge" id="roundStatusBadge">Loading</div>
@@ -50,14 +50,14 @@
       </section>
 
       <form id="lookupForm" class="lookup-form hidden">
-        <label for="lastName">Enter your last name</label>
+        <label for="playerSearch">Enter your first or last name</label>
 
         <div class="input-row">
           <input
-            id="lastName"
-            name="lastName"
+            id="playerSearch"
+            name="playerSearch"
             type="text"
-            autocomplete="family-name"
+            autocomplete="name"
             required
           />
 
@@ -68,6 +68,8 @@
       <section id="message" class="message hidden"></section>
 
       <section id="matches" class="matches hidden"></section>
+
+      <section id="adminOptions" class="admin-options hidden"></section>
     </section>
   </main>
 
