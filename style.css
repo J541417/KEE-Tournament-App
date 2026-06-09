@@ -454,3 +454,129 @@ button:disabled {
     padding: 10px 8px;
   }
 }
+.compact-scorecard-card {
+  padding-top: 26px;
+}
+
+.scorecard-top-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.scorecard-top-bar h1 {
+  font-size: 2rem;
+}
+
+.scorecard-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.scorecard-top-actions .secondary-button {
+  padding: 10px 14px;
+}
+
+.compact-toolbar {
+  margin-bottom: 12px;
+}
+
+.compact-toolbar h2 {
+  margin-bottom: 0;
+  font-size: 1.35rem;
+}
+
+.clean-scorecard-table th,
+.clean-scorecard-table td {
+  padding: 10px 8px;
+}
+
+.clean-scorecard-table td:first-child,
+.clean-scorecard-table th:first-child {
+  min-width: 160px;
+}
+
+.clean-scorecard-table .small-enter-button {
+  padding: 9px 10px;
+  font-size: 0.9rem;
+}
+
+.score-entry-simple {
+  text-align: center;
+  padding: 8px 0 0;
+}
+
+.score-entry-simple h1 {
+  font-size: 2rem;
+  margin: 6px 0 12px;
+}
+
+.entry-subtitle {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 22px;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.entry-subtitle span {
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: #ecf7ef;
+  color: var(--primary-dark);
+}
+
+.centered-label {
+  text-align: center;
+  font-size: 1.35rem;
+}
+
+.big-score-input {
+  max-width: 240px;
+  margin: 0 auto;
+  text-align: center;
+  font-size: 3rem;
+  font-weight: 800;
+  padding: 18px;
+}
+
+.big-save-button {
+  max-width: 300px;
+  margin: 18px auto 0;
+  display: block;
+  font-size: 1.25rem;
+  padding: 18px;
+}
+
+@media (max-width: 700px) {
+  .compact-scorecard-card {
+    padding: 18px;
+  }
+
+  .scorecard-top-bar {
+    align-items: center;
+  }
+
+  .scorecard-top-bar h1 {
+    font-size: 1.7rem;
+  }
+
+  .scorecard-top-actions {
+    flex-direction: column;
+    align-items: flex-end;
+  }
+
+  .entry-subtitle {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .big-score-input {
+    max-width: 100%;
+  }
+}
