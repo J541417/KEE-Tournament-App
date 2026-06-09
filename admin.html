@@ -1,92 +1,147 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+import { appendDataRows, getDataRows, getRows, TAB_NAMES } from "../lib/googleSheets.js";
+import {
+  isAdminValue,
+  makeToken,
+  nameMatchesSearch,
+  normalizePhone
+} from "../lib/playerUtils.js";
 
-  <title>Golf League Admin</title>
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({
+      error: "Method not allowed."
+    });
+  }
 
-  <link rel="stylesheet" href="/style.css" />
-</head>
-<body>
-  <main class="page-shell">
-    <section class="card admin-card">
-      <div class="header">
-        <div>
-          <p class="eyebrow">Golf League</p>
-          <h1>Admin Panel</h1>
-        </div>
+  try {
+    const { search, lastName } = req.body || {};
+    const searchValue = search || lastName;
 
-        <div class="badge" id="adminStatusBadge">Locked</div>
-      </div>
+    if (!searchValue || !String(searchValue).trim()) {
+      return res.status(400).json({
+        error: "Name is required."
+      });
+    }
 
-      <form id="loginForm" class="lookup-form">
-        <label for="adminPassword">Admin Password</label>
+    const [dataRows, playerRows] = await Promise.all([
+      getDataRows(),
+      getRows(TAB_NAMES.PLAYERS)
+    ]);
 
-        <div class="input-row">
-          <input
-            id="adminPassword"
-            name="adminPassword"
-            type="password"
-            autocomplete="current-password"
-            required
-          />
+    const activeRound = dataRows.find((row) =>
+      String(row.record_type || "").trim() === "round" &&
+      String(row.status || "").trim().toLowerCase() === "active"
+    );
 
-          <button type="submit">Log In</button>
-        </div>
-      </form>
+    const allMatchingPlayers = playerRows
+      .map((row) => ({
+        playerId: normalizePhone(row["Phone Number"]),
+        playerName: String(row.Golfer || "").trim(),
+        playerRating: String(row.Rating || "").trim(),
+        isAdmin: isAdminValue(row.Admin)
+      }))
+      .filter((player) =>
+        player.playerId &&
+        player.playerName &&
+        nameMatchesSearch(player.playerName, searchValue)
+      );
 
-      <section id="adminPanel" class="hidden">
-        <section class="round-panel">
-          <h2>Create Active Round</h2>
+    if (allMatchingPlayers.length === 0) {
+      return res.status(200).json({
+        status: "no_match",
+        players: []
+      });
+    }
 
-          <div class="admin-grid">
-            <label>
-              Round Date
-              <input id="roundDate" type="date" required />
-            </label>
+    const playersWithRoundInfo = await Promise.all(
+      allMatchingPlayers.map(async (player) => {
+        const roundPlayer = activeRound
+          ? dataRows.find((row) =>
+              String(row.record_type || "").trim() === "round_player" &&
+              String(row.round_id || "").trim() === String(activeRound.round_id || "").trim() &&
+              String(row.player_id || "").trim() === String(player.playerId || "").trim() &&
+              String(row.status || "").trim().toLowerCase() === "active"
+            )
+          : null;
 
-            <label>
-              Course
-              <select id="courseSelect" required>
-                <option value="">Loading courses...</option>
-              </select>
-            </label>
+        let token = "";
 
-            <label>
-              Scoring Mode
-              <select id="scoringMode" required>
-                <option value="team">Team scoring</option>
-                <option value="individual">Individual scoring</option>
-              </select>
-            </label>
+        if (activeRound && roundPlayer) {
+          token = await getOrCreateToken({
+            rows: dataRows,
+            tournamentId: activeRound.tournament_id,
+            roundId: activeRound.round_id,
+            player: roundPlayer
+          });
+        }
 
-            <label>
-              Number of Teams
-              <input id="teamCount" type="number" min="1" max="20" value="2" required />
-            </label>
-          </div>
+        return {
+          playerId: player.playerId,
+          playerName: player.playerName,
+          playerRating: player.playerRating,
+          isAdmin: player.isAdmin,
+          teamId: roundPlayer?.team_id || "",
+          teamNumber: roundPlayer?.team_number || "",
+          token
+        };
+      })
+    );
 
-          <button id="buildTeamsButton" type="button">
-            Build Team Boxes
-          </button>
-        </section>
+    if (playersWithRoundInfo.length === 1) {
+      return res.status(200).json({
+        status: "single_match",
+        player: playersWithRoundInfo[0]
+      });
+    }
 
-        <section id="teamsContainer" class="teams-container hidden"></section>
+    return res.status(200).json({
+      status: "multiple_matches",
+      players: playersWithRoundInfo
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: error.message || "Unable to find player."
+    });
+  }
+}
 
-        <button id="saveRoundButton" type="button" class="hidden">
-          Set Active Round
-        </button>
+async function getOrCreateToken({ rows, tournamentId, roundId, player }) {
+  const existing = rows.find((row) =>
+    String(row.record_type || "").trim() === "scorecard_token" &&
+    String(row.round_id || "").trim() === String(roundId || "").trim() &&
+    String(row.player_id || "").trim() === String(player.player_id || "").trim() &&
+    String(row.status || "").trim().toLowerCase() === "active"
+  );
 
-        <p class="muted">
-          Setting a new round will wipe all existing temporary data from the data tab, except the header row.
-        </p>
-      </section>
+  if (existing?.token) {
+    return existing.token;
+  }
 
-      <section id="message" class="message hidden"></section>
-    </section>
-  </main>
+  const token = makeToken();
+  const updatedAt = new Date().toISOString();
 
-  <script src="/admin.js"></script>
-</body>
-</html>
+  await appendDataRows([
+    [
+      "scorecard_token",
+      tournamentId || "",
+      roundId || "",
+      "",
+      player.team_id || "",
+      player.team_number || "",
+      player.player_id || "",
+      player.player_name || "",
+      player.player_rating || "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      token,
+      "active",
+      updatedAt,
+      "Created from user landing page"
+    ]
+  ]);
+
+  return token;
+}
