@@ -182,7 +182,10 @@ function buildTeamBoxes() {
         select.appendChild(option);
       });
 
-      select.addEventListener("change", () => updateTeamRating(teamCard));
+      select.addEventListener("change", () => {
+        updateTeamRating(teamCard);
+        updatePlayerAvailability();
+      });
 
       label.appendChild(select);
       teamCard.appendChild(label);
@@ -191,6 +194,8 @@ function buildTeamBoxes() {
     elements.teamsContainer.appendChild(teamCard);
     updateTeamRating(teamCard);
   }
+
+  updatePlayerAvailability();
 
   elements.teamsContainer.classList.remove("hidden");
   elements.saveRoundButton.classList.remove("hidden");
@@ -211,6 +216,28 @@ function updateTeamRating(teamCard) {
   if (ratingDisplay) {
     ratingDisplay.textContent = `Rating: ${total.toFixed(2)}`;
   }
+}
+
+function updatePlayerAvailability() {
+  const selects = Array.from(document.querySelectorAll(".player-select"));
+  const selectedValues = selects
+    .map((select) => select.value)
+    .filter(Boolean);
+
+  selects.forEach((select) => {
+    const currentValue = select.value;
+
+    Array.from(select.options).forEach((option) => {
+      if (!option.value) {
+        option.disabled = false;
+        return;
+      }
+
+      option.disabled =
+        option.value !== currentValue &&
+        selectedValues.includes(option.value);
+    });
+  });
 }
 
 async function saveActiveRound() {
