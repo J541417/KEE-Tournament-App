@@ -39,28 +39,100 @@
             <strong id="loggedInPlayer">-</strong>
           </div>
         </div>
-      </section>
 
-      <section class="round-panel">
-        <div class="hole-nav-header">
-          <h2>Choose Hole</h2>
-          <div class="badge" id="currentHoleBadge">Hole 1</div>
+        <div id="scorecardAdminActions" class="admin-options hidden">
+          <button id="scorecardAdminButton" type="button" class="secondary-button">
+            Go to Admin Panel
+          </button>
         </div>
-
-        <div id="holeNav" class="hole-nav"></div>
       </section>
 
-      <section class="round-panel">
-        <div class="hole-nav-header">
-          <div>
-            <p class="eyebrow">Current Hole</p>
-            <h2 id="holeTitle">Hole 1</h2>
+      <section id="scorecardView">
+        <section class="round-panel">
+          <div class="scorecard-toolbar">
+            <button id="prevHoleWindowButton" type="button" class="secondary-button">
+              Back Holes
+            </button>
+
+            <div>
+              <p class="eyebrow">Showing</p>
+              <h2 id="holeWindowLabel">Holes 1-5</h2>
+            </div>
+
+            <button id="nextHoleWindowButton" type="button" class="secondary-button">
+              Next Holes
+            </button>
           </div>
 
-          <div class="team-rating" id="parBadge">Par -</div>
-        </div>
+          <button id="toggleFullCardButton" type="button" class="secondary-button full-width-button">
+            Show Entire Card
+          </button>
 
-        <div id="teamsList" class="teams-container"></div>
+          <div id="scorecardTableWrapper" class="scorecard-table-wrapper"></div>
+        </section>
+      </section>
+
+      <section id="scoreEntryView" class="hidden">
+        <section class="round-panel score-entry-panel">
+          <div class="hole-nav-header">
+            <div>
+              <p class="eyebrow" id="entryTypeLabel">Team</p>
+              <h2 id="entryParticipantName">Team 1</h2>
+            </div>
+
+            <div class="team-rating" id="entryParBadge">
+              Par -
+            </div>
+          </div>
+
+          <div class="round-details">
+            <div class="detail-row">
+              <span>Course</span>
+              <strong id="entryCourseName">-</strong>
+            </div>
+
+            <div class="detail-row">
+              <span>Hole</span>
+              <strong id="entryHoleNumber">-</strong>
+            </div>
+
+            <div class="detail-row">
+              <span>Current Score</span>
+              <strong id="entryCurrentScore">-</strong>
+            </div>
+          </div>
+
+          <label class="score-input-label" for="entryScoreInput">
+            Enter Score
+          </label>
+
+          <input
+            id="entryScoreInput"
+            type="number"
+            min="1"
+            max="20"
+            inputmode="numeric"
+            placeholder="Score"
+          />
+
+          <div class="score-entry-actions">
+            <button id="prevEntryHoleButton" type="button" class="secondary-button">
+              Back Hole
+            </button>
+
+            <button id="saveEntryScoreButton" type="button">
+              Save Score
+            </button>
+
+            <button id="nextEntryHoleButton" type="button" class="secondary-button">
+              Next Hole
+            </button>
+          </div>
+
+          <button id="returnToScorecardButton" type="button" class="secondary-button full-width-button">
+            Return to Scorecard
+          </button>
+        </section>
       </section>
 
       <section id="message" class="message hidden"></section>
