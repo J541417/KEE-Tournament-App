@@ -9,10 +9,6 @@ const scorecardState = {
 const elements = {
   scorecardBadge: document.getElementById("scorecardBadge"),
   courseName: document.getElementById("courseName"),
-  roundDate: document.getElementById("roundDate"),
-  scoringMode: document.getElementById("scoringMode"),
-  loggedInPlayer: document.getElementById("loggedInPlayer"),
-  scorecardAdminActions: document.getElementById("scorecardAdminActions"),
   scorecardAdminButton: document.getElementById("scorecardAdminButton"),
   prevHoleWindowButton: document.getElementById("prevHoleWindowButton"),
   nextHoleWindowButton: document.getElementById("nextHoleWindowButton"),
@@ -22,11 +18,9 @@ const elements = {
   scorecardView: document.getElementById("scorecardView"),
   scoreEntryView: document.getElementById("scoreEntryView"),
   entryTypeLabel: document.getElementById("entryTypeLabel"),
+  entryMainTitle: document.getElementById("entryMainTitle"),
   entryParticipantName: document.getElementById("entryParticipantName"),
   entryParBadge: document.getElementById("entryParBadge"),
-  entryCourseName: document.getElementById("entryCourseName"),
-  entryHoleNumber: document.getElementById("entryHoleNumber"),
-  entryCurrentScore: document.getElementById("entryCurrentScore"),
   entryScoreInput: document.getElementById("entryScoreInput"),
   prevEntryHoleButton: document.getElementById("prevEntryHoleButton"),
   saveEntryScoreButton: document.getElementById("saveEntryScoreButton"),
@@ -83,15 +77,12 @@ async function loadScorecard() {
 function renderScorecardHeader() {
   const scorecard = scorecardState.scorecard;
 
-  elements.courseName.textContent = scorecard.courseName || "Course";
-  elements.roundDate.textContent = formatDisplayDate(scorecard.roundDate);
-  elements.scoringMode.textContent = formatScoringMode(scorecard.scoringMode);
-  elements.loggedInPlayer.textContent = scorecard.loggedInPlayerName || "-";
+  elements.courseName.textContent = scorecard.courseName || "Scorecard";
 
   if (scorecard.loggedInIsAdmin) {
-    elements.scorecardAdminActions.classList.remove("hidden");
+    elements.scorecardAdminButton.classList.remove("hidden");
   } else {
-    elements.scorecardAdminActions.classList.add("hidden");
+    elements.scorecardAdminButton.classList.add("hidden");
   }
 }
 
@@ -114,7 +105,7 @@ function renderScorecardTable() {
   elements.nextHoleWindowButton.disabled = scorecardState.showFullCard || scorecardState.visibleStartHole >= 14;
 
   const table = document.createElement("table");
-  table.className = "scorecard-table";
+  table.className = "scorecard-table clean-scorecard-table";
 
   table.appendChild(buildHeaderRow(holes));
   table.appendChild(buildParRow(holes));
@@ -149,11 +140,11 @@ function buildHeaderRow(holes) {
   });
 
   const totalCell = document.createElement("th");
-  totalCell.textContent = "Total";
+  totalCell.textContent = "+/-";
   row.appendChild(totalCell);
 
   const actionCell = document.createElement("th");
-  actionCell.textContent = "Score";
+  actionCell.textContent = "Enter";
   row.appendChild(actionCell);
 
   return row;
@@ -174,7 +165,7 @@ function buildParRow(holes) {
   });
 
   const totalCell = document.createElement("td");
-  totalCell.textContent = holes.reduce((sum, hole) => sum + Number(hole.par || 0), 0);
+  totalCell.textContent = "";
   row.appendChild(totalCell);
 
   const actionCell = document.createElement("td");
@@ -194,27 +185,21 @@ function buildTeamScoreRow(team, holes) {
   `;
   row.appendChild(nameCell);
 
-  let total = 0;
-
   holes.forEach((hole) => {
     const score = getTeamScore(team.teamId, hole.holeNumber);
     const cell = document.createElement("td");
     cell.textContent = score || "-";
-
-    if (score) {
-      total += Number(score);
-    }
-
     row.appendChild(cell);
   });
 
-  const totalCell = document.createElement("td");
-  totalCell.textContent = total || "-";
-  row.appendChild(totalCell);
+  const plusMinusCell = document.createElement("td");
+  plusMinusCell.textContent = formatPlusMinus(calculateTeamPlusMinus(team.teamId));
+  row.appendChild(plusMinusCell);
 
   const actionCell = document.createElement("td");
   const button = document.createElement("button");
   button.type = "button";
+  button.className = "small-enter-button";
   button.textContent = "Enter";
   button.disabled = String(team.teamId || "") !== String(scorecardState.scorecard.loggedInTeamId || "");
   button.addEventListener("click", () => {
@@ -242,27 +227,21 @@ function buildIndividualScoreRow(team, player, holes) {
   `;
   row.appendChild(nameCell);
 
-  let total = 0;
-
   holes.forEach((hole) => {
     const score = getIndividualScore(player.playerId, hole.holeNumber);
     const cell = document.createElement("td");
     cell.textContent = score || "-";
-
-    if (score) {
-      total += Number(score);
-    }
-
     row.appendChild(cell);
   });
 
-  const totalCell = document.createElement("td");
-  totalCell.textContent = total || "-";
-  row.appendChild(totalCell);
+  const plusMinusCell = document.createElement("td");
+  plusMinusCell.textContent = formatPlusMinus(calculateIndividualPlusMinus(player.playerId));
+  row.appendChild(plusMinusCell);
 
   const actionCell = document.createElement("td");
   const button = document.createElement("button");
   button.type = "button";
+  button.className = "small-enter-button";
   button.textContent = "Enter";
   button.disabled = String(player.playerId || "") !== String(scorecardState.scorecard.loggedInPlayerId || "");
   button.addEventListener("click", () => {
@@ -324,6 +303,11 @@ function openScoreEntry({ mode, team, player, holeNumber }) {
 
   elements.scorecardView.classList.add("hidden");
   elements.scoreEntryView.classList.remove("hidden");
+
+  setTimeout(() => {
+    elements.entryScoreInput.focus();
+    elements.entryScoreInput.select();
+  }, 50);
 }
 
 function renderEntryView() {
@@ -341,11 +325,9 @@ function renderEntryView() {
     : getIndividualScore(target.player.playerId, target.holeNumber);
 
   elements.entryTypeLabel.textContent = target.mode === "team" ? "Team Score" : "Individual Score";
+  elements.entryMainTitle.textContent = `${scorecardState.scorecard.courseName} Hole ${target.holeNumber}`;
   elements.entryParticipantName.textContent = participantName;
   elements.entryParBadge.textContent = `Par ${hole?.par || "-"}`;
-  elements.entryCourseName.textContent = scorecardState.scorecard.courseName || "-";
-  elements.entryHoleNumber.textContent = `Hole ${target.holeNumber}`;
-  elements.entryCurrentScore.textContent = currentScore || "-";
   elements.entryScoreInput.value = currentScore || "";
 
   elements.prevEntryHoleButton.disabled = target.holeNumber <= 1;
@@ -441,6 +423,58 @@ function getIndividualScore(playerId, holeNumber) {
   return scorecardState.scorecard.scores[key]?.score || "";
 }
 
+function calculateTeamPlusMinus(teamId) {
+  let scoreTotal = 0;
+  let parTotal = 0;
+
+  scorecardState.scorecard.holes.forEach((hole) => {
+    const score = getTeamScore(teamId, hole.holeNumber);
+
+    if (score) {
+      scoreTotal += Number(score);
+      parTotal += Number(hole.par || 0);
+    }
+  });
+
+  if (parTotal === 0) {
+    return null;
+  }
+
+  return scoreTotal - parTotal;
+}
+
+function calculateIndividualPlusMinus(playerId) {
+  let scoreTotal = 0;
+  let parTotal = 0;
+
+  scorecardState.scorecard.holes.forEach((hole) => {
+    const score = getIndividualScore(playerId, hole.holeNumber);
+
+    if (score) {
+      scoreTotal += Number(score);
+      parTotal += Number(hole.par || 0);
+    }
+  });
+
+  if (parTotal === 0) {
+    return null;
+  }
+
+  return scoreTotal - parTotal;
+}
+
+function formatPlusMinus(value) {
+  if (value === null || value === undefined) {
+    return "-";
+  }
+
+  if (value === 0) {
+    return "E";
+  }
+
+  return value > 0 ? `+${value}` : String(value);
+}
+
 function showMessage(text) {
   elements.message.textContent = text;
   elements.message.classList.remove("hidden");
@@ -458,30 +492,6 @@ function showSuccess(text) {
 function clearMessage() {
   elements.message.textContent = "";
   elements.message.classList.add("hidden");
-}
-
-function formatScoringMode(value) {
-  if (value === "team") return "Team scoring";
-  if (value === "individual") return "Individual scoring";
-
-  return value || "-";
-}
-
-function formatDisplayDate(value) {
-  if (!value) return "-";
-
-  const date = new Date(`${value}T00:00:00`);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleDateString(undefined, {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric"
-  });
 }
 
 function escapeHtml(value) {
