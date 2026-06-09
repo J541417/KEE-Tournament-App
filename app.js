@@ -12,9 +12,10 @@ const elements = {
   courseName: document.getElementById("courseName"),
   scoringMode: document.getElementById("scoringMode"),
   lookupForm: document.getElementById("lookupForm"),
-  lastName: document.getElementById("lastName"),
+  playerSearch: document.getElementById("playerSearch"),
   message: document.getElementById("message"),
-  matches: document.getElementById("matches")
+  matches: document.getElementById("matches"),
+  adminOptions: document.getElementById("adminOptions")
 };
 
 document.addEventListener("DOMContentLoaded", loadActiveRound);
@@ -23,6 +24,7 @@ elements.lookupForm.addEventListener("submit", handleLookupSubmit);
 async function loadActiveRound() {
   clearMessage();
   clearMatches();
+  clearAdminOptions();
 
   try {
     const response = await fetch("/api/active-round");
@@ -38,6 +40,7 @@ async function loadActiveRound() {
     if (!data.active) {
       elements.roundStatusBadge.textContent = "No Active Round";
       elements.noActiveRound.classList.remove("hidden");
+      elements.lookupForm.classList.remove("hidden");
       return;
     }
 
@@ -62,11 +65,12 @@ async function handleLookupSubmit(event) {
 
   clearMessage();
   clearMatches();
+  clearAdminOptions();
 
-  const lastName = elements.lastName.value.trim();
+  const search = elements.playerSearch.value.trim();
 
-  if (!lastName) {
-    showMessage("Please enter your last name.");
+  if (!search) {
+    showMessage("Please enter your first or last name.");
     return;
   }
 
@@ -80,7 +84,7 @@ async function handleLookupSubmit(event) {
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ lastName })
+      body: JSON.stringify({ search })
     });
 
     const data = await response.json();
@@ -90,12 +94,12 @@ async function handleLookupSubmit(event) {
     }
 
     if (data.status === "no_match") {
-      showMessage("No player was found for that last name in the active round.");
+      showMessage("No player was found for that name.");
       return;
     }
 
     if (data.status === "single_match") {
-      goToScorecard(data.player.token);
+      handleResolvedPlayer(data.player);
       return;
     }
 
@@ -113,6 +117,20 @@ async function handleLookupSubmit(event) {
   }
 }
 
+function handleResolvedPlayer(player) {
+  if (player.isAdmin) {
+    renderAdminOptions(player);
+    return;
+  }
+
+  if (player.token) {
+    goToScorecard(player.token);
+    return;
+  }
+
+  showMessage("You were found, but you are not associated with the active round.");
+}
+
 function renderMatches(players) {
   elements.matches.innerHTML = "";
 
@@ -125,17 +143,64 @@ function renderMatches(players) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "match-button";
+
+    const subtitleParts = [];
+
+    if (player.teamNumber) {
+      subtitleParts.push(`Team ${player.teamNumber}`);
+    }
+
+    if (player.isAdmin) {
+      subtitleParts.push("Admin");
+    }
+
+    if (!player.token) {
+      subtitleParts.push("No active scorecard");
+    }
+
     button.innerHTML = `
       ${escapeHtml(player.playerName)}
-      <span class="match-subtitle">Team ${escapeHtml(String(player.teamNumber || ""))}</span>
+      <span class="match-subtitle">${escapeHtml(subtitleParts.join(" | "))}</span>
     `;
 
-    button.addEventListener("click", () => goToScorecard(player.token));
+    button.addEventListener("click", () => handleResolvedPlayer(player));
 
     elements.matches.appendChild(button);
   });
 
   elements.matches.classList.remove("hidden");
+}
+
+function renderAdminOptions(player) {
+  elements.adminOptions.innerHTML = "";
+
+  const title = document.createElement("div");
+  title.className = "muted";
+  title.textContent = `Welcome, ${player.playerName}. Choose where you want to go.`;
+  elements.adminOptions.appendChild(title);
+
+  const scorecardButton = document.createElement("button");
+  scorecardButton.type = "button";
+  scorecardButton.textContent = "Go to Scorecard";
+
+  if (player.token) {
+    scorecardButton.addEventListener("click", () => goToScorecard(player.token));
+  } else {
+    scorecardButton.disabled = true;
+    scorecardButton.textContent = "No Active Scorecard";
+  }
+
+  const adminButton = document.createElement("button");
+  adminButton.type = "button";
+  adminButton.className = "secondary-button";
+  adminButton.textContent = "Go to Admin Panel";
+  adminButton.addEventListener("click", () => {
+    window.location.href = "/admin.html";
+  });
+
+  elements.adminOptions.appendChild(scorecardButton);
+  elements.adminOptions.appendChild(adminButton);
+  elements.adminOptions.classList.remove("hidden");
 }
 
 function goToScorecard(token) {
@@ -155,6 +220,11 @@ function clearMessage() {
 function clearMatches() {
   elements.matches.innerHTML = "";
   elements.matches.classList.add("hidden");
+}
+
+function clearAdminOptions() {
+  elements.adminOptions.innerHTML = "";
+  elements.adminOptions.classList.add("hidden");
 }
 
 function formatScoringMode(value) {
