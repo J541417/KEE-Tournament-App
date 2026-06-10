@@ -359,3 +359,8 @@ function clearMessage() {
   elements.message.textContent = "";
   elements.message.classList.add("hidden");
 }
+
+/* ⭐ NEW FUNCTION ADDED ⭐ */
+function goToScorecard() {
+  window.location.href = "/scorecard.html";
+}
