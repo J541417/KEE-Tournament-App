@@ -21,6 +21,13 @@ export default async function handler(req, res) {
       });
     }
 
+    // ⭐ NEW: Find the matching token for the active round!
+    const tokenRow = rows.find((row) =>
+      String(row.record_type || "").trim() === "scorecard_token" &&
+      String(row.round_id || "").trim() === String(activeRound.round_id || "").trim() &&
+      String(row.status || "").trim().toLowerCase() === "active"
+    );
+
     return res.status(200).json({
       active: true,
       tournamentId: activeRound.tournament_id || "",
@@ -28,7 +35,9 @@ export default async function handler(req, res) {
       roundNumber: activeRound.round_number || "",
       courseName: activeRound.course_name || "",
       roundDate: activeRound.round_date || "",
-      scoringMode: activeRound.scoring_mode || ""
+      scoringMode: activeRound.scoring_mode || "",
+      // ⭐ NEW: Send the token back to the Admin page
+      token: tokenRow ? String(tokenRow.token || "").trim() : "" 
     });
   } catch (error) {
     return res.status(500).json({
