@@ -75,8 +75,33 @@ export default async function handler(req, res) {
     const tournamentId = `T${Date.now()}`;
     const roundId = "R1";
     const roundNumber = "1";
+    
+    // ⭐ NEW: Generate a unique token for this round
+    const masterToken = `ADMIN-${Date.now()}`;
 
     const rows = [];
+
+    // ⭐ NEW: Create the scorecard_token row so the database has a key!
+    rows.push([
+      "scorecard_token",
+      tournamentId,
+      roundId,
+      roundNumber,
+      "",
+      "",
+      "admin",
+      "Admin",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      masterToken, // This places the token in the correct column
+      "active",
+      now,
+      "Generated for Admin Panel"
+    ]);
 
     rows.push([
       "round",
@@ -148,10 +173,12 @@ export default async function handler(req, res) {
     await clearDataRowsBelowHeader();
     await appendDataRows(rows);
 
+    // ⭐ NEW: Pass the token back to the frontend in the success response
     return res.status(200).json({
       success: true,
       tournamentId,
       roundId,
+      token: masterToken,
       rowsWritten: rows.length
     });
   } catch (error) {
