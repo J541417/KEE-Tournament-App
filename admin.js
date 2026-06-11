@@ -1,7 +1,8 @@
 const adminState = {
   password: "",
   players: [],
-  courses: []
+  courses: [],
+  activeToken: "" // ⭐ NEW: Added memory for the scorecard token
 };
 
 const elements = {
@@ -288,6 +289,11 @@ async function saveActiveRound() {
       throw new Error(data.error || "Unable to create active round.");
     }
 
+    // ⭐ NEW: If your backend ever sends a token back, save it!
+    if (data.token) {
+      adminState.activeToken = data.token;
+    }
+
     showSuccess(`Active round created. ${data.rowsWritten} rows written to the data tab.`);
   } catch (error) {
     showMessage(error.message || "Unable to create active round.");
@@ -360,13 +366,22 @@ function clearMessage() {
   elements.message.classList.add("hidden");
 }
 
-/* ⭐ UPDATED FUNCTION ⭐ */
+/* ⭐ UPDATED: Failsafe Token Prompt ⭐ */
 function goToScorecard() {
-  // If they haven't logged in yet, adminState.password will be empty.
-  // We can either pass an empty token or alert them. We'll try to pass the token.
-  const token = adminState.password;
-  
-  // Use relative path (no leading slash) and append the token
-  window.location.href = `scorecard.html?token=${encodeURIComponent(token)}`;
+  // 1. If we saved the token during round creation, use it automatically
+  if (adminState.activeToken) {
+    window.location.href = `scorecard.html?token=${encodeURIComponent(adminState.activeToken)}`;
+    return;
+  }
+
+  // 2. Failsafe: If no token was saved, ask the Admin to paste it
+  const manualToken = prompt(
+    "Please paste an active 'scorecard_token' from your Google Sheet Data tab to view the scorecard:"
+  );
+
+  // 3. Navigate to the scorecard with the provided token
+  if (manualToken) {
+    window.location.href = `scorecard.html?token=${encodeURIComponent(manualToken.trim())}`;
+  }
 }
 // END OF FILE
