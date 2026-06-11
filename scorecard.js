@@ -34,9 +34,12 @@ document.addEventListener("DOMContentLoaded", loadScorecard);
 elements.prevHoleWindowButton.addEventListener("click", () => moveHoleWindow(-5));
 elements.nextHoleWindowButton.addEventListener("click", () => moveHoleWindow(5));
 elements.toggleFullCardButton.addEventListener("click", toggleFullCard);
+
+// CORRECTED: Removed the leading slash to make it a relative path
 elements.scorecardAdminButton.addEventListener("click", () => {
-  window.location.href = "/admin.html";
+  window.location.href = "admin.html";
 });
+
 elements.prevEntryHoleButton.addEventListener("click", () => moveEntryHole(-1));
 elements.nextEntryHoleButton.addEventListener("click", () => moveEntryHole(1));
 elements.saveEntryScoreButton.addEventListener("click", saveEntryScore);
