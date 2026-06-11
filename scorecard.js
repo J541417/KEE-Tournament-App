@@ -87,8 +87,10 @@ function renderScorecardHeader() {
     elements.courseName.textContent = scorecard.courseName || "Scorecard";
   }
 
+  // Also make sure the Admin button shows up if they are using the master token!
+  const isAdmin = scorecard.loggedInIsAdmin || String(scorecard.loggedInPlayerId).toLowerCase() === "admin";
   if (elements.scorecardAdminButton) {
-    if (scorecard.loggedInIsAdmin) {
+    if (isAdmin) {
       elements.scorecardAdminButton.classList.remove("hidden");
     } else {
       elements.scorecardAdminButton.classList.add("hidden");
@@ -221,7 +223,12 @@ function buildTeamScoreRow(team, holes) {
   button.type = "button";
   button.className = "small-enter-button";
   button.textContent = "Enter";
-  button.disabled = String(team.teamId || "") !== String(scorecardState.scorecard.loggedInTeamId || "");
+  
+  // ⭐ FIX IS HERE: Enable if they are on the team OR if they are an admin
+  const isAdmin = scorecardState.scorecard.loggedInIsAdmin || String(scorecardState.scorecard.loggedInPlayerId).toLowerCase() === "admin";
+  const isMyTeam = String(team.teamId || "") === String(scorecardState.scorecard.loggedInTeamId || "");
+  button.disabled = !(isAdmin || isMyTeam);
+
   button.addEventListener("click", () => {
     openScoreEntry({
       mode: "team",
@@ -263,7 +270,12 @@ function buildIndividualScoreRow(team, player, holes) {
   button.type = "button";
   button.className = "small-enter-button";
   button.textContent = "Enter";
-  button.disabled = String(player.playerId || "") !== String(scorecardState.scorecard.loggedInPlayerId || "");
+  
+  // ⭐ FIX IS HERE: Enable if it is their score OR if they are an admin
+  const isAdmin = scorecardState.scorecard.loggedInIsAdmin || String(scorecardState.scorecard.loggedInPlayerId).toLowerCase() === "admin";
+  const isMe = String(player.playerId || "") === String(scorecardState.scorecard.loggedInPlayerId || "");
+  button.disabled = !(isAdmin || isMe);
+
   button.addEventListener("click", () => {
     openScoreEntry({
       mode: "individual",
