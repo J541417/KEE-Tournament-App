@@ -29,19 +29,16 @@ const elements = {
   message: document.getElementById("message")
 };
 
-// FIX: Force the script to run even if the browser loaded too fast
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", loadScorecard);
 } else {
   loadScorecard();
 }
 
-// FIX: Added optional chaining (?.) to prevent crashing if HTML elements are missing
 elements.prevHoleWindowButton?.addEventListener("click", () => moveHoleWindow(-5));
 elements.nextHoleWindowButton?.addEventListener("click", () => moveHoleWindow(5));
 elements.toggleFullCardButton?.addEventListener("click", toggleFullCard);
 
-// CORRECTED PATH: Removed the leading slash so it can find the admin file
 elements.scorecardAdminButton?.addEventListener("click", () => {
   window.location.href = "admin.html";
 });
@@ -57,7 +54,6 @@ async function loadScorecard() {
   const params = new URLSearchParams(window.location.search);
   scorecardState.token = params.get("token") || "";
 
-  // DEBUG MESSAGE ADDED
   if (!scorecardState.token) {
     if (elements.scorecardBadge) elements.scorecardBadge.textContent = "Error";
     showMessage("FRONTEND ERROR: No scorecard token was provided in the URL.");
@@ -80,7 +76,6 @@ async function loadScorecard() {
     if (elements.scorecardBadge) elements.scorecardBadge.textContent = "Active";
   } catch (error) {
     if (elements.scorecardBadge) elements.scorecardBadge.textContent = "Error";
-    // DEBUG MESSAGE ADDED
     showMessage(`BACKEND ERROR: ${error.message || "Unable to load scorecard."}`);
   }
 }
@@ -310,4 +305,226 @@ function moveHoleWindow(direction) {
 }
 
 function toggleFullCard() {
-  scorecardState.showFullCard = !scorecardState.
+  scorecardState.showFullCard = !scorecardState.showFullCard;
+  renderScorecardTable();
+}
+
+function openScoreEntry({ mode, team, player, holeNumber }) {
+  clearMessage();
+
+  scorecardState.entryTarget = {
+    mode,
+    team,
+    player,
+    holeNumber
+  };
+
+  renderEntryView();
+
+  if (elements.scorecardView) elements.scorecardView.classList.add("hidden");
+  if (elements.scoreEntryView) elements.scoreEntryView.classList.remove("hidden");
+
+  setTimeout(() => {
+    if (elements.entryScoreInput) {
+      elements.entryScoreInput.focus();
+      elements.entryScoreInput.select();
+    }
+  }, 50);
+}
+
+function renderEntryView() {
+  const target = scorecardState.entryTarget;
+  const hole = scorecardState.scorecard.holes.find((item) =>
+    Number(item.holeNumber) === Number(target.holeNumber)
+  );
+
+  const participantName = target.mode === "team"
+    ? `Team ${target.team.teamNumber}`
+    : target.player.playerName;
+
+  const currentScore = target.mode === "team"
+    ? getTeamScore(target.team.teamId, target.holeNumber)
+    : getIndividualScore(target.player.playerId, target.holeNumber);
+
+  if (elements.entryTypeLabel) elements.entryTypeLabel.textContent = target.mode === "team" ? "Team Score" : "Individual Score";
+  if (elements.entryMainTitle) elements.entryMainTitle.textContent = `${scorecardState.scorecard.courseName} Hole ${target.holeNumber}`;
+  if (elements.entryParticipantName) elements.entryParticipantName.textContent = participantName;
+  if (elements.entryParBadge) elements.entryParBadge.textContent = `Par ${hole?.par || "-"}`;
+  if (elements.entryScoreInput) elements.entryScoreInput.value = currentScore || "";
+
+  if (elements.prevEntryHoleButton) elements.prevEntryHoleButton.disabled = target.holeNumber <= 1;
+  if (elements.nextEntryHoleButton) elements.nextEntryHoleButton.disabled = target.holeNumber >= 18;
+}
+
+function moveEntryHole(direction) {
+  if (!scorecardState.entryTarget) {
+    return;
+  }
+
+  scorecardState.entryTarget.holeNumber += direction;
+
+  if (scorecardState.entryTarget.holeNumber < 1) {
+    scorecardState.entryTarget.holeNumber = 1;
+  }
+
+  if (scorecardState.entryTarget.holeNumber > 18) {
+    scorecardState.entryTarget.holeNumber = 18;
+  }
+
+  renderEntryView();
+}
+
+async function saveEntryScore() {
+  const target = scorecardState.entryTarget;
+
+  if (!target) {
+    return;
+  }
+
+  await saveScore({
+    scoringMode: target.mode === "team" ? "team" : "individual",
+    teamId: target.team.teamId,
+    playerId: target.player?.playerId || "",
+    holeNumber: target.holeNumber,
+    score: elements.entryScoreInput?.value || ""
+  });
+}
+
+async function saveScore({ scoringMode, teamId, playerId, holeNumber, score }) {
+  clearMessage();
+
+  try {
+    const response = await fetch("/api/save-score", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        token: scorecardState.token,
+        scoringMode,
+        roundId: scorecardState.scorecard.roundId,
+        teamId,
+        playerId,
+        holeNumber,
+        score
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Unable to save score.");
+    }
+
+    await loadScorecard();
+
+    if (scorecardState.entryTarget) {
+      renderEntryView();
+    }
+
+    showSuccess("Score saved.");
+  } catch (error) {
+    showMessage(error.message || "Unable to save score.");
+  }
+}
+
+function showScorecardView() {
+  clearMessage();
+  if (elements.scoreEntryView) elements.scoreEntryView.classList.add("hidden");
+  if (elements.scorecardView) elements.scorecardView.classList.remove("hidden");
+  renderScorecardTable();
+}
+
+function getTeamScore(teamId, holeNumber) {
+  const key = `team:${teamId}:hole:${holeNumber}`;
+  return scorecardState.scorecard.scores[key]?.score || "";
+}
+
+function getIndividualScore(playerId, holeNumber) {
+  const key = `player:${playerId}:hole:${holeNumber}`;
+  return scorecardState.scorecard.scores[key]?.score || "";
+}
+
+function calculateTeamPlusMinus(teamId) {
+  let scoreTotal = 0;
+  let parTotal = 0;
+
+  scorecardState.scorecard.holes.forEach((hole) => {
+    const score = getTeamScore(teamId, hole.holeNumber);
+
+    if (score) {
+      scoreTotal += Number(score);
+      parTotal += Number(hole.par || 0);
+    }
+  });
+
+  if (parTotal === 0) {
+    return null;
+  }
+
+  return scoreTotal - parTotal;
+}
+
+function calculateIndividualPlusMinus(playerId) {
+  let scoreTotal = 0;
+  let parTotal = 0;
+
+  scorecardState.scorecard.holes.forEach((hole) => {
+    const score = getIndividualScore(playerId, hole.holeNumber);
+
+    if (score) {
+      scoreTotal += Number(score);
+      parTotal += Number(hole.par || 0);
+    }
+  });
+
+  if (parTotal === 0) {
+    return null;
+  }
+
+  return scoreTotal - parTotal;
+}
+
+function formatPlusMinus(value) {
+  if (value === null || value === undefined) {
+    return "-";
+  }
+
+  if (value === 0) {
+    return "E";
+  }
+
+  return value > 0 ? `+${value}` : String(value);
+}
+
+function showMessage(text) {
+  if (!elements.message) return;
+  elements.message.textContent = text;
+  elements.message.classList.remove("hidden");
+  elements.message.style.background = "var(--danger-bg)";
+  elements.message.style.color = "var(--danger-text)";
+}
+
+function showSuccess(text) {
+  if (!elements.message) return;
+  elements.message.textContent = text;
+  elements.message.classList.remove("hidden");
+  elements.message.style.background = "#ecf7ef";
+  elements.message.style.color = "var(--primary-dark)";
+}
+
+function clearMessage() {
+  if (!elements.message) return;
+  elements.message.textContent = "";
+  elements.message.classList.add("hidden");
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+// END OF FILE
