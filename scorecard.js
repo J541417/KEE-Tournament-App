@@ -1,3 +1,10 @@
+Here is the complete scorecard.js file with the debug message added.
+
+I changed the first error message to say "FRONTEND ERROR:" so you can test whether the URL parameter is vanishing, or if the backend is rejecting your test token.
+
+Copy and paste this entirely into your file:
+
+JavaScript
 const scorecardState = {
   token: "",
   scorecard: null,
@@ -35,7 +42,7 @@ elements.prevHoleWindowButton.addEventListener("click", () => moveHoleWindow(-5)
 elements.nextHoleWindowButton.addEventListener("click", () => moveHoleWindow(5));
 elements.toggleFullCardButton.addEventListener("click", toggleFullCard);
 
-// CORRECTED: Removed the leading slash to make it a relative path
+// CORRECTED: Relative path so the button finds the admin file
 elements.scorecardAdminButton.addEventListener("click", () => {
   window.location.href = "admin.html";
 });
@@ -51,9 +58,10 @@ async function loadScorecard() {
   const params = new URLSearchParams(window.location.search);
   scorecardState.token = params.get("token") || "";
 
+  // DEBUG ADDED: We added "FRONTEND ERROR" to see if the browser is losing the token
   if (!scorecardState.token) {
     elements.scorecardBadge.textContent = "Error";
-    showMessage("No scorecard token was provided.");
+    showMessage("FRONTEND ERROR: No scorecard token was provided in the URL.");
     return;
   }
 
@@ -73,7 +81,8 @@ async function loadScorecard() {
     elements.scorecardBadge.textContent = "Active";
   } catch (error) {
     elements.scorecardBadge.textContent = "Error";
-    showMessage(error.message || "Unable to load scorecard.");
+    // DEBUG ADDED: Added "BACKEND ERROR" to see if the server is rejecting it
+    showMessage(`BACKEND ERROR: ${error.message || "Unable to load scorecard."}`);
   }
 }
 
