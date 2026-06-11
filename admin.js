@@ -360,7 +360,13 @@ function clearMessage() {
   elements.message.classList.add("hidden");
 }
 
-/* ⭐ NEW FUNCTION ADDED ⭐ */
+/* ⭐ UPDATED FUNCTION ⭐ */
 function goToScorecard() {
-  window.location.href = "/scorecard.html";
+  // If they haven't logged in yet, adminState.password will be empty.
+  // We can either pass an empty token or alert them. We'll try to pass the token.
+  const token = adminState.password;
+  
+  // Use relative path (no leading slash) and append the token
+  window.location.href = `scorecard.html?token=${encodeURIComponent(token)}`;
 }
+// END OF FILE
