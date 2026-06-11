@@ -1,10 +1,3 @@
-Here is the complete scorecard.js file with the debug message added.
-
-I changed the first error message to say "FRONTEND ERROR:" so you can test whether the URL parameter is vanishing, or if the backend is rejecting your test token.
-
-Copy and paste this entirely into your file:
-
-JavaScript
 const scorecardState = {
   token: "",
   scorecard: null,
@@ -36,21 +29,27 @@ const elements = {
   message: document.getElementById("message")
 };
 
-document.addEventListener("DOMContentLoaded", loadScorecard);
+// FIX: Force the script to run even if the browser loaded too fast
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", loadScorecard);
+} else {
+  loadScorecard();
+}
 
-elements.prevHoleWindowButton.addEventListener("click", () => moveHoleWindow(-5));
-elements.nextHoleWindowButton.addEventListener("click", () => moveHoleWindow(5));
-elements.toggleFullCardButton.addEventListener("click", toggleFullCard);
+// FIX: Added optional chaining (?.) to prevent crashing if HTML elements are missing
+elements.prevHoleWindowButton?.addEventListener("click", () => moveHoleWindow(-5));
+elements.nextHoleWindowButton?.addEventListener("click", () => moveHoleWindow(5));
+elements.toggleFullCardButton?.addEventListener("click", toggleFullCard);
 
-// CORRECTED: Relative path so the button finds the admin file
-elements.scorecardAdminButton.addEventListener("click", () => {
+// CORRECTED PATH: Removed the leading slash so it can find the admin file
+elements.scorecardAdminButton?.addEventListener("click", () => {
   window.location.href = "admin.html";
 });
 
-elements.prevEntryHoleButton.addEventListener("click", () => moveEntryHole(-1));
-elements.nextEntryHoleButton.addEventListener("click", () => moveEntryHole(1));
-elements.saveEntryScoreButton.addEventListener("click", saveEntryScore);
-elements.returnToScorecardButton.addEventListener("click", showScorecardView);
+elements.prevEntryHoleButton?.addEventListener("click", () => moveEntryHole(-1));
+elements.nextEntryHoleButton?.addEventListener("click", () => moveEntryHole(1));
+elements.saveEntryScoreButton?.addEventListener("click", saveEntryScore);
+elements.returnToScorecardButton?.addEventListener("click", showScorecardView);
 
 async function loadScorecard() {
   clearMessage();
@@ -58,9 +57,9 @@ async function loadScorecard() {
   const params = new URLSearchParams(window.location.search);
   scorecardState.token = params.get("token") || "";
 
-  // DEBUG ADDED: We added "FRONTEND ERROR" to see if the browser is losing the token
+  // DEBUG MESSAGE ADDED
   if (!scorecardState.token) {
-    elements.scorecardBadge.textContent = "Error";
+    if (elements.scorecardBadge) elements.scorecardBadge.textContent = "Error";
     showMessage("FRONTEND ERROR: No scorecard token was provided in the URL.");
     return;
   }
@@ -78,10 +77,10 @@ async function loadScorecard() {
     renderScorecardHeader();
     renderScorecardTable();
 
-    elements.scorecardBadge.textContent = "Active";
+    if (elements.scorecardBadge) elements.scorecardBadge.textContent = "Active";
   } catch (error) {
-    elements.scorecardBadge.textContent = "Error";
-    // DEBUG ADDED: Added "BACKEND ERROR" to see if the server is rejecting it
+    if (elements.scorecardBadge) elements.scorecardBadge.textContent = "Error";
+    // DEBUG MESSAGE ADDED
     showMessage(`BACKEND ERROR: ${error.message || "Unable to load scorecard."}`);
   }
 }
@@ -89,12 +88,16 @@ async function loadScorecard() {
 function renderScorecardHeader() {
   const scorecard = scorecardState.scorecard;
 
-  elements.courseName.textContent = scorecard.courseName || "Scorecard";
+  if (elements.courseName) {
+    elements.courseName.textContent = scorecard.courseName || "Scorecard";
+  }
 
-  if (scorecard.loggedInIsAdmin) {
-    elements.scorecardAdminButton.classList.remove("hidden");
-  } else {
-    elements.scorecardAdminButton.classList.add("hidden");
+  if (elements.scorecardAdminButton) {
+    if (scorecard.loggedInIsAdmin) {
+      elements.scorecardAdminButton.classList.remove("hidden");
+    } else {
+      elements.scorecardAdminButton.classList.add("hidden");
+    }
   }
 }
 
@@ -105,16 +108,24 @@ function renderScorecardTable() {
   const firstHole = holes[0]?.holeNumber || 1;
   const lastHole = holes[holes.length - 1]?.holeNumber || 18;
 
-  elements.holeWindowLabel.textContent = scorecardState.showFullCard
-    ? "Entire Card"
-    : `Holes ${firstHole}-${lastHole}`;
+  if (elements.holeWindowLabel) {
+    elements.holeWindowLabel.textContent = scorecardState.showFullCard
+      ? "Entire Card"
+      : `Holes ${firstHole}-${lastHole}`;
+  }
 
-  elements.toggleFullCardButton.textContent = scorecardState.showFullCard
-    ? "Show Compact View"
-    : "Show Entire Card";
+  if (elements.toggleFullCardButton) {
+    elements.toggleFullCardButton.textContent = scorecardState.showFullCard
+      ? "Show Compact View"
+      : "Show Entire Card";
+  }
 
-  elements.prevHoleWindowButton.disabled = scorecardState.showFullCard || scorecardState.visibleStartHole <= 1;
-  elements.nextHoleWindowButton.disabled = scorecardState.showFullCard || scorecardState.visibleStartHole >= 14;
+  if (elements.prevHoleWindowButton) {
+    elements.prevHoleWindowButton.disabled = scorecardState.showFullCard || scorecardState.visibleStartHole <= 1;
+  }
+  if (elements.nextHoleWindowButton) {
+    elements.nextHoleWindowButton.disabled = scorecardState.showFullCard || scorecardState.visibleStartHole >= 14;
+  }
 
   const table = document.createElement("table");
   table.className = "scorecard-table clean-scorecard-table";
@@ -134,8 +145,10 @@ function renderScorecardTable() {
     });
   }
 
-  elements.scorecardTableWrapper.innerHTML = "";
-  elements.scorecardTableWrapper.appendChild(table);
+  if (elements.scorecardTableWrapper) {
+    elements.scorecardTableWrapper.innerHTML = "";
+    elements.scorecardTableWrapper.appendChild(table);
+  }
 }
 
 function buildHeaderRow(holes) {
@@ -297,220 +310,4 @@ function moveHoleWindow(direction) {
 }
 
 function toggleFullCard() {
-  scorecardState.showFullCard = !scorecardState.showFullCard;
-  renderScorecardTable();
-}
-
-function openScoreEntry({ mode, team, player, holeNumber }) {
-  clearMessage();
-
-  scorecardState.entryTarget = {
-    mode,
-    team,
-    player,
-    holeNumber
-  };
-
-  renderEntryView();
-
-  elements.scorecardView.classList.add("hidden");
-  elements.scoreEntryView.classList.remove("hidden");
-
-  setTimeout(() => {
-    elements.entryScoreInput.focus();
-    elements.entryScoreInput.select();
-  }, 50);
-}
-
-function renderEntryView() {
-  const target = scorecardState.entryTarget;
-  const hole = scorecardState.scorecard.holes.find((item) =>
-    Number(item.holeNumber) === Number(target.holeNumber)
-  );
-
-  const participantName = target.mode === "team"
-    ? `Team ${target.team.teamNumber}`
-    : target.player.playerName;
-
-  const currentScore = target.mode === "team"
-    ? getTeamScore(target.team.teamId, target.holeNumber)
-    : getIndividualScore(target.player.playerId, target.holeNumber);
-
-  elements.entryTypeLabel.textContent = target.mode === "team" ? "Team Score" : "Individual Score";
-  elements.entryMainTitle.textContent = `${scorecardState.scorecard.courseName} Hole ${target.holeNumber}`;
-  elements.entryParticipantName.textContent = participantName;
-  elements.entryParBadge.textContent = `Par ${hole?.par || "-"}`;
-  elements.entryScoreInput.value = currentScore || "";
-
-  elements.prevEntryHoleButton.disabled = target.holeNumber <= 1;
-  elements.nextEntryHoleButton.disabled = target.holeNumber >= 18;
-}
-
-function moveEntryHole(direction) {
-  if (!scorecardState.entryTarget) {
-    return;
-  }
-
-  scorecardState.entryTarget.holeNumber += direction;
-
-  if (scorecardState.entryTarget.holeNumber < 1) {
-    scorecardState.entryTarget.holeNumber = 1;
-  }
-
-  if (scorecardState.entryTarget.holeNumber > 18) {
-    scorecardState.entryTarget.holeNumber = 18;
-  }
-
-  renderEntryView();
-}
-
-async function saveEntryScore() {
-  const target = scorecardState.entryTarget;
-
-  if (!target) {
-    return;
-  }
-
-  await saveScore({
-    scoringMode: target.mode === "team" ? "team" : "individual",
-    teamId: target.team.teamId,
-    playerId: target.player?.playerId || "",
-    holeNumber: target.holeNumber,
-    score: elements.entryScoreInput.value
-  });
-}
-
-async function saveScore({ scoringMode, teamId, playerId, holeNumber, score }) {
-  clearMessage();
-
-  try {
-    const response = await fetch("/api/save-score", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        token: scorecardState.token,
-        scoringMode,
-        roundId: scorecardState.scorecard.roundId,
-        teamId,
-        playerId,
-        holeNumber,
-        score
-      })
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || "Unable to save score.");
-    }
-
-    await loadScorecard();
-
-    if (scorecardState.entryTarget) {
-      renderEntryView();
-    }
-
-    showSuccess("Score saved.");
-  } catch (error) {
-    showMessage(error.message || "Unable to save score.");
-  }
-}
-
-function showScorecardView() {
-  clearMessage();
-  elements.scoreEntryView.classList.add("hidden");
-  elements.scorecardView.classList.remove("hidden");
-  renderScorecardTable();
-}
-
-function getTeamScore(teamId, holeNumber) {
-  const key = `team:${teamId}:hole:${holeNumber}`;
-  return scorecardState.scorecard.scores[key]?.score || "";
-}
-
-function getIndividualScore(playerId, holeNumber) {
-  const key = `player:${playerId}:hole:${holeNumber}`;
-  return scorecardState.scorecard.scores[key]?.score || "";
-}
-
-function calculateTeamPlusMinus(teamId) {
-  let scoreTotal = 0;
-  let parTotal = 0;
-
-  scorecardState.scorecard.holes.forEach((hole) => {
-    const score = getTeamScore(teamId, hole.holeNumber);
-
-    if (score) {
-      scoreTotal += Number(score);
-      parTotal += Number(hole.par || 0);
-    }
-  });
-
-  if (parTotal === 0) {
-    return null;
-  }
-
-  return scoreTotal - parTotal;
-}
-
-function calculateIndividualPlusMinus(playerId) {
-  let scoreTotal = 0;
-  let parTotal = 0;
-
-  scorecardState.scorecard.holes.forEach((hole) => {
-    const score = getIndividualScore(playerId, hole.holeNumber);
-
-    if (score) {
-      scoreTotal += Number(score);
-      parTotal += Number(hole.par || 0);
-    }
-  });
-
-  if (parTotal === 0) {
-    return null;
-  }
-
-  return scoreTotal - parTotal;
-}
-
-function formatPlusMinus(value) {
-  if (value === null || value === undefined) {
-    return "-";
-  }
-
-  if (value === 0) {
-    return "E";
-  }
-
-  return value > 0 ? `+${value}` : String(value);
-}
-
-function showMessage(text) {
-  elements.message.textContent = text;
-  elements.message.classList.remove("hidden");
-  elements.message.style.background = "var(--danger-bg)";
-  elements.message.style.color = "var(--danger-text)";
-}
-
-function showSuccess(text) {
-  elements.message.textContent = text;
-  elements.message.classList.remove("hidden");
-  elements.message.style.background = "#ecf7ef";
-  elements.message.style.color = "var(--primary-dark)";
-}
-
-function clearMessage() {
-  elements.message.textContent = "";
-  elements.message.classList.add("hidden");
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
+  scorecardState.showFullCard = !scorecardState.
