@@ -73,6 +73,9 @@ export default async function handler(req, res) {
 
     const now = new Date().toISOString();
 
+    // ⭐ THE VIP PASS: Check if the person saving the score is using the master Admin token
+    const isAdminToken = String(tokenRow.player_id || "").trim().toLowerCase() === "admin";
+
     if (scoringMode === "team") {
       if (!teamId) {
         return res.status(400).json({
@@ -80,8 +83,8 @@ export default async function handler(req, res) {
         });
       }
 
-      const authorizedForTeam =
-        String(tokenRow.team_id || "").trim() === String(teamId || "").trim();
+      // ⭐ OVERRIDE: Allow if it is their team OR if they are the admin
+      const authorizedForTeam = isAdminToken || String(tokenRow.team_id || "").trim() === String(teamId || "").trim();
 
       if (!authorizedForTeam) {
         return res.status(403).json({
@@ -89,14 +92,21 @@ export default async function handler(req, res) {
         });
       }
 
+      // If Admin is saving, fetch the actual team's details so the Google Sheet stays accurate
+      const targetTeamRow = rows.find(row => 
+        String(row.record_type || "").trim() === "team" && 
+        String(row.team_id || "").trim() === String(teamId).trim() &&
+        String(row.round_id || "").trim() === String(roundId).trim()
+      ) || tokenRow;
+
       await appendDataRows([
         [
           "team_score",
-          tokenRow.tournament_id || "",
+          targetTeamRow.tournament_id || "",
           roundId,
-          tokenRow.round_number || "",
+          targetTeamRow.round_number || "",
           teamId,
-          tokenRow.team_number || "",
+          targetTeamRow.team_number || "",
           "",
           "",
           "",
@@ -108,7 +118,7 @@ export default async function handler(req, res) {
           "",
           "active",
           now,
-          "Score entered from scorecard"
+          isAdminToken ? "Score entered by Admin" : "Score entered from scorecard"
         ]
       ]);
 
@@ -124,8 +134,8 @@ export default async function handler(req, res) {
         });
       }
 
-      const authorizedForPlayer =
-        String(tokenRow.player_id || "").trim() === String(playerId || "").trim();
+      // ⭐ OVERRIDE: Allow if it is their score OR if they are the admin
+      const authorizedForPlayer = isAdminToken || String(tokenRow.player_id || "").trim() === String(playerId || "").trim();
 
       if (!authorizedForPlayer) {
         return res.status(403).json({
@@ -133,16 +143,23 @@ export default async function handler(req, res) {
         });
       }
 
+      // If Admin is saving, fetch the actual player's details so the Google Sheet stays accurate
+      const targetPlayerRow = rows.find(row => 
+        String(row.record_type || "").trim() === "round_player" && 
+        String(row.player_id || "").trim() === String(playerId).trim() &&
+        String(row.round_id || "").trim() === String(roundId).trim()
+      ) || tokenRow;
+
       await appendDataRows([
         [
           "individual_score",
-          tokenRow.tournament_id || "",
+          targetPlayerRow.tournament_id || "",
           roundId,
-          tokenRow.round_number || "",
-          tokenRow.team_id || "",
-          tokenRow.team_number || "",
+          targetPlayerRow.round_number || "",
+          targetPlayerRow.team_id || "",
+          targetPlayerRow.team_number || "",
           playerId,
-          tokenRow.player_name || "",
+          targetPlayerRow.player_name || "",
           "",
           "",
           "",
@@ -152,7 +169,7 @@ export default async function handler(req, res) {
           "",
           "active",
           now,
-          "Score entered from scorecard"
+          isAdminToken ? "Score entered by Admin" : "Score entered from scorecard"
         ]
       ]);
 
