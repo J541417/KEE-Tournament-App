@@ -32,7 +32,7 @@ elements.buildTeamsButton?.addEventListener("click", buildTeamBoxes);
 elements.saveRoundButton?.addEventListener("click", saveActiveRound);
 
 async function handleLogin(event) {
-  event.preventDefault(); // This is the magic line that stops the password from going into the URL!
+  event.preventDefault();
 
   clearMessage();
 
@@ -341,3 +341,69 @@ function collectTeams() {
       if (usedPlayerIds.has(player.playerId)) {
         showMessage(`${player.playerName} is selected more than once.`);
         return null;
+      }
+      usedPlayerIds.add(player.playerId);
+    }
+
+    teams.push({ teamNumber, players });
+  }
+
+  return teams;
+}
+
+function showMessage(text) {
+  if (!elements.message) return;
+  elements.message.textContent = text;
+  elements.message.classList.remove("hidden");
+  elements.message.style.background = "var(--danger-bg)";
+  elements.message.style.color = "var(--danger-text)";
+}
+
+function showSuccess(text) {
+  if (!elements.message) return;
+  elements.message.textContent = text;
+  elements.message.classList.remove("hidden");
+  elements.message.style.background = "#ecf7ef";
+  elements.message.style.color = "var(--primary-dark)";
+}
+
+function clearMessage() {
+  if (!elements.message) return;
+  elements.message.textContent = "";
+  elements.message.classList.add("hidden");
+}
+
+async function goToScorecard() {
+  if (adminState.activeToken) {
+    window.location.href = `scorecard.html?token=${encodeURIComponent(adminState.activeToken)}`;
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/get-active-round?t=${Date.now()}`); 
+    
+    if (response.ok) {
+      const data = await response.json();
+      
+      if (data.active && data.token) {
+        adminState.activeToken = data.token;
+        window.location.href = `scorecard.html?token=${encodeURIComponent(data.token)}`;
+        return; 
+      } else {
+        console.warn("Backend connected, but returned no token:", data);
+      }
+    } else {
+      console.error("Backend rejected the request:", response.status);
+    }
+  } catch (err) {
+    console.error("Could not fetch the active token:", err);
+  }
+
+  const manualToken = prompt(
+    "Could not automatically find an active token. Please paste an active 'scorecard_token' from your Google Sheet Data tab:"
+  );
+
+  if (manualToken) {
+    window.location.href = `scorecard.html?token=${encodeURIComponent(manualToken.trim())}`;
+  }
+}
