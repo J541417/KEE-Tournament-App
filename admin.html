@@ -37,12 +37,22 @@
       </form>
 
       <section id="adminPanel" class="hidden">
-        <section class="round-panel">
-          <h2>Create Active Round</h2>
+        
+        <section id="currentRoundPanel" class="round-panel hidden" style="border: 2px solid var(--primary); margin-bottom: 2rem;">
+          <h2>⛳ Current Active Round</h2>
+          <div style="margin: 1.5rem 0; font-size: 1.1rem; line-height: 1.8;">
+            <div><strong>Date:</strong> <span id="displayRoundDate">Loading...</span></div>
+            <div><strong>Course:</strong> <span id="displayCourse">Loading...</span></div>
+            <div><strong>Format:</strong> <span id="displayFormat">Loading...</span></div>
+          </div>
+          <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+            <button onclick="goToScorecard()" class="nav-button" type="button">Go to Scorecard</button>
+            <button id="deleteRoundBtn" type="button" style="background: var(--danger-bg); color: var(--danger-text); border: none;">Delete Round</button>
+          </div>
+        </section>
 
-          <button onclick="goToScorecard()" class="nav-button" type="button">
-            Go to Scorecard
-          </button>
+        <section class="round-panel">
+          <h2>Create / Replace Active Round</h2>
 
           <div class="admin-grid">
             <label>
@@ -83,7 +93,7 @@
         </button>
 
         <p class="muted">
-          Setting a new round will wipe all existing temporary data from the data tab, except the header row.
+          Setting a new round will overwrite the active round and wipe existing temporary data from the data tab.
         </p>
       </section>
 
@@ -91,6 +101,6 @@
     </section>
   </main>
 
-  <script src="admin.js?v=5"></script>
+  <script src="admin.js?v=6"></script>
 </body>
 </html>
