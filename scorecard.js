@@ -80,6 +80,15 @@ async function loadScorecard() {
   }
 }
 
+// ⭐ BULLETPROOF ADMIN CHECK FUNCTION
+function isUserAdmin() {
+  const token = String(scorecardState.token).toLowerCase();
+  const loggedInId = String(scorecardState.scorecard?.loggedInPlayerId || "").toLowerCase();
+  const isServerAdmin = scorecardState.scorecard?.loggedInIsAdmin === true;
+
+  return token.includes("admin") || loggedInId === "admin" || isServerAdmin;
+}
+
 function renderScorecardHeader() {
   const scorecard = scorecardState.scorecard;
 
@@ -87,10 +96,8 @@ function renderScorecardHeader() {
     elements.courseName.textContent = scorecard.courseName || "Scorecard";
   }
 
-  // Also make sure the Admin button shows up if they are using the master token!
-  const isAdmin = scorecard.loggedInIsAdmin || String(scorecard.loggedInPlayerId).toLowerCase() === "admin";
   if (elements.scorecardAdminButton) {
-    if (isAdmin) {
+    if (isUserAdmin()) {
       elements.scorecardAdminButton.classList.remove("hidden");
     } else {
       elements.scorecardAdminButton.classList.add("hidden");
@@ -224,10 +231,9 @@ function buildTeamScoreRow(team, holes) {
   button.className = "small-enter-button";
   button.textContent = "Enter";
   
-  // ⭐ FIX IS HERE: Enable if they are on the team OR if they are an admin
-  const isAdmin = scorecardState.scorecard.loggedInIsAdmin || String(scorecardState.scorecard.loggedInPlayerId).toLowerCase() === "admin";
+  // ⭐ BULLETPROOF CHECK APPLIED HERE
   const isMyTeam = String(team.teamId || "") === String(scorecardState.scorecard.loggedInTeamId || "");
-  button.disabled = !(isAdmin || isMyTeam);
+  button.disabled = !(isUserAdmin() || isMyTeam);
 
   button.addEventListener("click", () => {
     openScoreEntry({
@@ -271,10 +277,9 @@ function buildIndividualScoreRow(team, player, holes) {
   button.className = "small-enter-button";
   button.textContent = "Enter";
   
-  // ⭐ FIX IS HERE: Enable if it is their score OR if they are an admin
-  const isAdmin = scorecardState.scorecard.loggedInIsAdmin || String(scorecardState.scorecard.loggedInPlayerId).toLowerCase() === "admin";
+  // ⭐ BULLETPROOF CHECK APPLIED HERE
   const isMe = String(player.playerId || "") === String(scorecardState.scorecard.loggedInPlayerId || "");
-  button.disabled = !(isAdmin || isMe);
+  button.disabled = !(isUserAdmin() || isMe);
 
   button.addEventListener("click", () => {
     openScoreEntry({
