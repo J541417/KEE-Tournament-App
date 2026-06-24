@@ -21,12 +21,41 @@ export default async function handler(req, res) {
       });
     }
 
-    // ⭐ NEW: Find the matching token for the active round!
     const tokenRow = rows.find((row) =>
       String(row.record_type || "").trim() === "scorecard_token" &&
       String(row.round_id || "").trim() === String(activeRound.round_id || "").trim() &&
       String(row.status || "").trim().toLowerCase() === "active"
     );
+
+    // ⭐ NEW: Grab all teams attached to this specific round
+    const teamRows = rows.filter((row) => 
+      String(row.record_type || "").trim() === "team" &&
+      String(row.round_id || "").trim() === String(activeRound.round_id || "").trim() &&
+      String(row.status || "").trim().toLowerCase() === "active"
+    );
+
+    // ⭐ NEW: Grab all players attached to this specific round
+    const playerRows = rows.filter((row) => 
+      String(row.record_type || "").trim() === "round_player" &&
+      String(row.round_id || "").trim() === String(activeRound.round_id || "").trim() &&
+      String(row.status || "").trim().toLowerCase() === "active"
+    );
+
+    // ⭐ NEW: Bundle the players into their correct team boxes
+    const teams = teamRows.map((team) => {
+      const teamPlayers = playerRows
+        .filter((p) => String(p.team_id || "").trim() === String(team.team_id || "").trim())
+        .map((p) => ({
+          playerId: p.player_id || "",
+          playerName: p.player_name || ""
+        }));
+      
+      return {
+        teamId: team.team_id || "",
+        teamNumber: team.team_number || "",
+        players: teamPlayers
+      };
+    });
 
     return res.status(200).json({
       active: true,
@@ -36,8 +65,8 @@ export default async function handler(req, res) {
       courseName: activeRound.course_name || "",
       roundDate: activeRound.round_date || "",
       scoringMode: activeRound.scoring_mode || "",
-      // ⭐ NEW: Send the token back to the Admin page
-      token: tokenRow ? String(tokenRow.token || "").trim() : "" 
+      token: tokenRow ? String(tokenRow.token || "").trim() : "",
+      teams: teams // Send the fully built teams back to the frontend!
     });
   } catch (error) {
     return res.status(500).json({
