@@ -11,7 +11,6 @@ const elements = {
   adminPassword: document.getElementById("adminPassword"),
   adminPanel: document.getElementById("adminPanel"),
   
-  // New Dashboard Elements
   currentRoundPanel: document.getElementById("currentRoundPanel"),
   displayRoundDate: document.getElementById("displayRoundDate"),
   displayCourse: document.getElementById("displayCourse"),
@@ -34,8 +33,6 @@ if (elements.loginForm) {
 
 elements.buildTeamsButton?.addEventListener("click", buildTeamBoxes);
 elements.saveRoundButton?.addEventListener("click", saveActiveRound);
-
-// Wire up the new Delete button
 elements.deleteRoundBtn?.addEventListener("click", deleteActiveRound);
 
 async function handleLogin(event) {
@@ -81,11 +78,10 @@ async function loadAdminData() {
   clearMessage();
 
   try {
-    // ⭐ NEW: Fetching the active round at the exact same time as players & courses
     const [playersResponse, coursesResponse, activeRoundResponse] = await Promise.all([
       fetch("/api/list-players"),
       fetch("/api/list-courses"),
-      fetch(`/api/get-active-round?t=${Date.now()}`)
+      fetch(`/api/active-round?t=${Date.now()}`)
     ]);
 
     const playersData = await playersResponse.json();
@@ -98,40 +94,59 @@ async function loadAdminData() {
     adminState.courses = coursesData.courses || [];
     populateCourses();
 
-    // Setup default date
     const today = new Date();
     if (elements.roundDate) elements.roundDate.value = today.toISOString().slice(0, 10);
 
-    // ⭐ NEW: Populate the Current Round Dashboard if an active round exists
+    // ⭐ DASHBOARD LOGIC: Pre-fill the form and player boxes if a round is active
     if (activeRoundResponse.ok) {
       const activeData = await activeRoundResponse.json();
+      
       if (activeData.active && activeData.token) {
         adminState.activeToken = activeData.token;
 
-        // Show the dashboard box
         if (elements.currentRoundPanel) elements.currentRoundPanel.classList.remove("hidden");
-        
-        // Fill in the dashboard text
         if (elements.displayRoundDate) elements.displayRoundDate.textContent = activeData.roundDate || "Active";
         if (elements.displayCourse) elements.displayCourse.textContent = activeData.courseName || "Unknown Course";
         if (elements.displayFormat) elements.displayFormat.textContent = activeData.scoringMode === "team" ? "Team Scoring" : "Individual Scoring";
 
-        // Pre-fill the "Replace Round" form below it to make changing it easy
         if (elements.roundDate && activeData.roundDate) elements.roundDate.value = activeData.roundDate;
         if (elements.courseSelect && activeData.courseName) elements.courseSelect.value = activeData.courseName;
         if (elements.scoringMode && activeData.scoringMode) elements.scoringMode.value = activeData.scoringMode;
+
+        // Automatically build and pre-fill the team boxes with the active players!
+        if (activeData.teams && activeData.teams.length > 0) {
+          if (elements.teamCount) elements.teamCount.value = activeData.teams.length;
+          
+          buildTeamBoxes(); 
+
+          activeData.teams.forEach((team, teamIndex) => {
+            const teamNum = teamIndex + 1;
+            team.players.forEach((player, playerIndex) => {
+              const slot = playerIndex + 1;
+              const select = document.querySelector(`.player-select[data-team-number="${teamNum}"][data-slot="${slot}"]`);
+              if (select) {
+                select.value = player.playerId;
+              }
+            });
+          });
+
+          const teamCards = Array.from(document.querySelectorAll(".team-card"));
+          teamCards.forEach(updateTeamRating);
+          updatePlayerAvailability();
+          return; // Stop here so we don't accidentally build blank boxes below
+        }
       }
     }
 
+    // If there is no active round, just build default blank boxes
     buildTeamBoxes();
   } catch (error) {
     showMessage(error.message || "Unable to load admin data.");
   }
 }
 
-// ⭐ NEW: The Delete Function
 async function deleteActiveRound() {
-  const confirmDelete = confirm("Are you sure you want to completely delete the active round? This will clear the scorecard.");
+  const confirmDelete = confirm("Are you sure you want to completely delete the active round? This will wipe the scorecard.");
   if (!confirmDelete) return;
 
   elements.deleteRoundBtn.disabled = true;
@@ -149,9 +164,12 @@ async function deleteActiveRound() {
 
     showSuccess("Active round successfully deleted.");
     
-    // Hide the dashboard since the round is gone
     adminState.activeToken = "";
     if (elements.currentRoundPanel) elements.currentRoundPanel.classList.add("hidden");
+    
+    // Reset form to defaults
+    if (elements.teamCount) elements.teamCount.value = 2;
+    buildTeamBoxes();
 
   } catch (error) {
     showMessage(error.message || "An error occurred while deleting.");
@@ -309,9 +327,8 @@ async function saveActiveRound() {
 
     if (data.token) adminState.activeToken = data.token;
     
-    // Refresh the UI to show the new round at the top!
     await loadAdminData(); 
-    showSuccess(`Active round replaced and created. ${data.rowsWritten} rows written.`);
+    showSuccess(`Active round saved. ${data.rowsWritten} rows written.`);
   } catch (error) {
     showMessage(error.message || "Unable to create active round.");
   } finally {
@@ -384,7 +401,7 @@ async function goToScorecard() {
     return;
   }
   try {
-    const response = await fetch(`/api/get-active-round?t=${Date.now()}`); 
+    const response = await fetch(`/api/active-round?t=${Date.now()}`); 
     if (response.ok) {
       const data = await response.json();
       if (data.active && data.token) {
