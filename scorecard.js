@@ -9,10 +9,12 @@ const scorecardState = {
 const elements = {
   scorecardBadge: document.getElementById("scorecardBadge"),
   courseName: document.getElementById("courseName"),
+  scorecardDate: document.getElementById("scorecardDate"),
   scorecardAdminButton: document.getElementById("scorecardAdminButton"),
   prevHoleWindowButton: document.getElementById("prevHoleWindowButton"),
   nextHoleWindowButton: document.getElementById("nextHoleWindowButton"),
   toggleFullCardButton: document.getElementById("toggleFullCardButton"),
+  globalEnterScoresButton: document.getElementById("globalEnterScoresButton"),
   holeWindowLabel: document.getElementById("holeWindowLabel"),
   scorecardTableWrapper: document.getElementById("scorecardTableWrapper"),
   scorecardView: document.getElementById("scorecardView"),
@@ -39,13 +41,22 @@ elements.prevHoleWindowButton?.addEventListener("click", () => moveHoleWindow(-5
 elements.nextHoleWindowButton?.addEventListener("click", () => moveHoleWindow(5));
 elements.toggleFullCardButton?.addEventListener("click", toggleFullCard);
 
+// ⭐ NEW: Hooking up the global Enter button
+elements.globalEnterScoresButton?.addEventListener("click", openGlobalScoreEntry);
+
 elements.scorecardAdminButton?.addEventListener("click", () => {
   window.location.href = "admin.html";
 });
 
 elements.prevEntryHoleButton?.addEventListener("click", () => moveEntryHole(-1));
 elements.nextEntryHoleButton?.addEventListener("click", () => moveEntryHole(1));
-elements.saveEntryScoreButton?.addEventListener("click", saveEntryScore);
+
+// ⭐ NEW: The Save button now tells the code to explicitly close the view when done
+elements.saveEntryScoreButton?.addEventListener("click", (e) => {
+  e.preventDefault();
+  saveEntryScore(true);
+});
+
 elements.returnToScorecardButton?.addEventListener("click", showScorecardView);
 
 async function loadScorecard() {
@@ -80,7 +91,6 @@ async function loadScorecard() {
   }
 }
 
-// ⭐ BULLETPROOF ADMIN CHECK FUNCTION
 function isUserAdmin() {
   const token = String(scorecardState.token).toLowerCase();
   const loggedInId = String(scorecardState.scorecard?.loggedInPlayerId || "").toLowerCase();
@@ -94,6 +104,11 @@ function renderScorecardHeader() {
 
   if (elements.courseName) {
     elements.courseName.textContent = scorecard.courseName || "Scorecard";
+  }
+  
+  // ⭐ NEW: Display the translated date!
+  if (elements.scorecardDate) {
+    elements.scorecardDate.textContent = scorecard.roundDate || "";
   }
 
   if (elements.scorecardAdminButton) {
@@ -231,7 +246,6 @@ function buildTeamScoreRow(team, holes) {
   button.className = "small-enter-button";
   button.textContent = "Enter";
   
-  // ⭐ BULLETPROOF CHECK APPLIED HERE
   const isMyTeam = String(team.teamId || "") === String(scorecardState.scorecard.loggedInTeamId || "");
   button.disabled = !(isUserAdmin() || isMyTeam);
 
@@ -268,280 +282,4 @@ function buildIndividualScoreRow(team, player, holes) {
   });
 
   const plusMinusCell = document.createElement("td");
-  plusMinusCell.textContent = formatPlusMinus(calculateIndividualPlusMinus(player.playerId));
-  row.appendChild(plusMinusCell);
-
-  const actionCell = document.createElement("td");
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "small-enter-button";
-  button.textContent = "Enter";
-  
-  // ⭐ BULLETPROOF CHECK APPLIED HERE
-  const isMe = String(player.playerId || "") === String(scorecardState.scorecard.loggedInPlayerId || "");
-  button.disabled = !(isUserAdmin() || isMe);
-
-  button.addEventListener("click", () => {
-    openScoreEntry({
-      mode: "individual",
-      team,
-      player,
-      holeNumber: scorecardState.visibleStartHole
-    });
-  });
-
-  actionCell.appendChild(button);
-  row.appendChild(actionCell);
-
-  return row;
-}
-
-function getVisibleHoles() {
-  if (scorecardState.showFullCard) {
-    return scorecardState.scorecard.holes;
-  }
-
-  return scorecardState.scorecard.holes.filter((hole) =>
-    hole.holeNumber >= scorecardState.visibleStartHole &&
-    hole.holeNumber <= scorecardState.visibleStartHole + 4
-  );
-}
-
-function moveHoleWindow(direction) {
-  scorecardState.visibleStartHole += direction;
-
-  if (scorecardState.visibleStartHole < 1) {
-    scorecardState.visibleStartHole = 1;
-  }
-
-  if (scorecardState.visibleStartHole > 14) {
-    scorecardState.visibleStartHole = 14;
-  }
-
-  renderScorecardTable();
-}
-
-function toggleFullCard() {
-  scorecardState.showFullCard = !scorecardState.showFullCard;
-  renderScorecardTable();
-}
-
-function openScoreEntry({ mode, team, player, holeNumber }) {
-  clearMessage();
-
-  scorecardState.entryTarget = {
-    mode,
-    team,
-    player,
-    holeNumber
-  };
-
-  renderEntryView();
-
-  if (elements.scorecardView) elements.scorecardView.classList.add("hidden");
-  if (elements.scoreEntryView) elements.scoreEntryView.classList.remove("hidden");
-
-  setTimeout(() => {
-    if (elements.entryScoreInput) {
-      elements.entryScoreInput.focus();
-      elements.entryScoreInput.select();
-    }
-  }, 50);
-}
-
-function renderEntryView() {
-  const target = scorecardState.entryTarget;
-  const hole = scorecardState.scorecard.holes.find((item) =>
-    Number(item.holeNumber) === Number(target.holeNumber)
-  );
-
-  const participantName = target.mode === "team"
-    ? `Team ${target.team.teamNumber}`
-    : target.player.playerName;
-
-  const currentScore = target.mode === "team"
-    ? getTeamScore(target.team.teamId, target.holeNumber)
-    : getIndividualScore(target.player.playerId, target.holeNumber);
-
-  if (elements.entryTypeLabel) elements.entryTypeLabel.textContent = target.mode === "team" ? "Team Score" : "Individual Score";
-  if (elements.entryMainTitle) elements.entryMainTitle.textContent = `${scorecardState.scorecard.courseName} Hole ${target.holeNumber}`;
-  if (elements.entryParticipantName) elements.entryParticipantName.textContent = participantName;
-  if (elements.entryParBadge) elements.entryParBadge.textContent = `Par ${hole?.par || "-"}`;
-  if (elements.entryScoreInput) elements.entryScoreInput.value = currentScore || "";
-
-  if (elements.prevEntryHoleButton) elements.prevEntryHoleButton.disabled = target.holeNumber <= 1;
-  if (elements.nextEntryHoleButton) elements.nextEntryHoleButton.disabled = target.holeNumber >= 18;
-}
-
-function moveEntryHole(direction) {
-  if (!scorecardState.entryTarget) {
-    return;
-  }
-
-  scorecardState.entryTarget.holeNumber += direction;
-
-  if (scorecardState.entryTarget.holeNumber < 1) {
-    scorecardState.entryTarget.holeNumber = 1;
-  }
-
-  if (scorecardState.entryTarget.holeNumber > 18) {
-    scorecardState.entryTarget.holeNumber = 18;
-  }
-
-  renderEntryView();
-}
-
-async function saveEntryScore() {
-  const target = scorecardState.entryTarget;
-
-  if (!target) {
-    return;
-  }
-
-  await saveScore({
-    scoringMode: target.mode === "team" ? "team" : "individual",
-    teamId: target.team.teamId,
-    playerId: target.player?.playerId || "",
-    holeNumber: target.holeNumber,
-    score: elements.entryScoreInput?.value || ""
-  });
-}
-
-async function saveScore({ scoringMode, teamId, playerId, holeNumber, score }) {
-  clearMessage();
-
-  try {
-    const response = await fetch("/api/save-score", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        token: scorecardState.token,
-        scoringMode,
-        roundId: scorecardState.scorecard.roundId,
-        teamId,
-        playerId,
-        holeNumber,
-        score
-      })
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || "Unable to save score.");
-    }
-
-    await loadScorecard();
-
-    if (scorecardState.entryTarget) {
-      renderEntryView();
-    }
-
-    showSuccess("Score saved.");
-  } catch (error) {
-    showMessage(error.message || "Unable to save score.");
-  }
-}
-
-function showScorecardView() {
-  clearMessage();
-  if (elements.scoreEntryView) elements.scoreEntryView.classList.add("hidden");
-  if (elements.scorecardView) elements.scorecardView.classList.remove("hidden");
-  renderScorecardTable();
-}
-
-function getTeamScore(teamId, holeNumber) {
-  const key = `team:${teamId}:hole:${holeNumber}`;
-  return scorecardState.scorecard.scores[key]?.score || "";
-}
-
-function getIndividualScore(playerId, holeNumber) {
-  const key = `player:${playerId}:hole:${holeNumber}`;
-  return scorecardState.scorecard.scores[key]?.score || "";
-}
-
-function calculateTeamPlusMinus(teamId) {
-  let scoreTotal = 0;
-  let parTotal = 0;
-
-  scorecardState.scorecard.holes.forEach((hole) => {
-    const score = getTeamScore(teamId, hole.holeNumber);
-
-    if (score) {
-      scoreTotal += Number(score);
-      parTotal += Number(hole.par || 0);
-    }
-  });
-
-  if (parTotal === 0) {
-    return null;
-  }
-
-  return scoreTotal - parTotal;
-}
-
-function calculateIndividualPlusMinus(playerId) {
-  let scoreTotal = 0;
-  let parTotal = 0;
-
-  scorecardState.scorecard.holes.forEach((hole) => {
-    const score = getIndividualScore(playerId, hole.holeNumber);
-
-    if (score) {
-      scoreTotal += Number(score);
-      parTotal += Number(hole.par || 0);
-    }
-  });
-
-  if (parTotal === 0) {
-    return null;
-  }
-
-  return scoreTotal - parTotal;
-}
-
-function formatPlusMinus(value) {
-  if (value === null || value === undefined) {
-    return "-";
-  }
-
-  if (value === 0) {
-    return "E";
-  }
-
-  return value > 0 ? `+${value}` : String(value);
-}
-
-function showMessage(text) {
-  if (!elements.message) return;
-  elements.message.textContent = text;
-  elements.message.classList.remove("hidden");
-  elements.message.style.background = "var(--danger-bg)";
-  elements.message.style.color = "var(--danger-text)";
-}
-
-function showSuccess(text) {
-  if (!elements.message) return;
-  elements.message.textContent = text;
-  elements.message.classList.remove("hidden");
-  elements.message.style.background = "#ecf7ef";
-  elements.message.style.color = "var(--primary-dark)";
-}
-
-function clearMessage() {
-  if (!elements.message) return;
-  elements.message.textContent = "";
-  elements.message.classList.add("hidden");
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-// END OF FILE
+  plus
