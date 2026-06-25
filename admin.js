@@ -7,10 +7,13 @@ const adminState = {
 
 const elements = {};
 
-// ⭐ NEW: This forces the script to wait until the HTML is 100% loaded before running
 document.addEventListener("DOMContentLoaded", () => {
   elements.adminStatusBadge = document.getElementById("adminStatusBadge");
-  elements.loginForm = document.getElementById("loginForm");
+  
+  // ⭐ NEW: Hooking up the simple login box and button instead of the old form
+  elements.loginBox = document.getElementById("loginBox");
+  elements.doLoginButton = document.getElementById("doLoginButton");
+  
   elements.adminPassword = document.getElementById("adminPassword");
   elements.adminPanel = document.getElementById("adminPanel");
   
@@ -29,9 +32,15 @@ document.addEventListener("DOMContentLoaded", () => {
   elements.saveRoundButton = document.getElementById("saveRoundButton");
   elements.message = document.getElementById("message");
 
-  if (elements.loginForm) {
-    elements.loginForm.addEventListener("submit", handleLogin);
-  }
+  // ⭐ NEW: Listen for a simple click
+  elements.doLoginButton?.addEventListener("click", handleLogin);
+
+  // ⭐ NEW: Allow pressing "Enter" in the password box
+  elements.adminPassword?.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
+      handleLogin(e);
+    }
+  });
 
   elements.buildTeamsButton?.addEventListener("click", buildTeamBoxes);
   elements.saveRoundButton?.addEventListener("click", saveActiveRound);
@@ -39,7 +48,6 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 async function handleLogin(event) {
-  // ⭐ BULLETPROOF ARMOR: Stops the password from jumping into the URL
   if (event) event.preventDefault(); 
   clearMessage();
 
@@ -49,9 +57,11 @@ async function handleLogin(event) {
     return;
   }
 
-  const loginButton = elements.loginForm.querySelector("button");
-  loginButton.disabled = true;
-  loginButton.textContent = "Logging in...";
+  const loginButton = elements.doLoginButton;
+  if (loginButton) {
+    loginButton.disabled = true;
+    loginButton.textContent = "Logging in...";
+  }
 
   try {
     const response = await fetch("/api/admin-login", {
@@ -66,15 +76,19 @@ async function handleLogin(event) {
     adminState.password = password;
 
     if (elements.adminStatusBadge) elements.adminStatusBadge.textContent = "Unlocked";
-    if (elements.loginForm) elements.loginForm.classList.add("hidden");
+    
+    // Hide the new login box
+    if (elements.loginBox) elements.loginBox.classList.add("hidden");
     if (elements.adminPanel) elements.adminPanel.classList.remove("hidden");
 
     await loadAdminData();
   } catch (error) {
     showMessage(error.message || "Login failed.");
   } finally {
-    loginButton.disabled = false;
-    loginButton.textContent = "Log In";
+    if (loginButton) {
+      loginButton.disabled = false;
+      loginButton.textContent = "Log In";
+    }
   }
 }
 
