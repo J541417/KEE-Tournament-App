@@ -139,11 +139,18 @@ export default async function handler(req, res) {
       };
     });
 
+    // ⭐ DATE TRANSLATOR FIX
+    let displayDate = round.round_date || "";
+    if (!isNaN(displayDate) && Number(displayDate) > 40000) {
+      const jsDate = new Date(Math.round((Number(displayDate) - 25569) * 86400 * 1000));
+      displayDate = jsDate.toISOString().split("T")[0];
+    }
+
     return res.status(200).json({
       tournamentId,
       roundId,
       roundNumber: round.round_number || "",
-      roundDate: round.round_date || "",
+      roundDate: displayDate, // ⭐ Sending the translated date!
       courseName: round.course_name || "",
       scoringMode: round.scoring_mode || "",
       loggedInPlayerId,
