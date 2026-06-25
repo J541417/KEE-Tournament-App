@@ -39,7 +39,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 async function handleLogin(event) {
-  // We already block the form in the HTML now, but we add this here as double-protection
+  // ⭐ BULLETPROOF ARMOR: Stops the password from jumping into the URL
   if (event) event.preventDefault(); 
   clearMessage();
 
