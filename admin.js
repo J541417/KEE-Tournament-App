@@ -5,38 +5,42 @@ const adminState = {
   activeToken: ""
 };
 
-const elements = {
-  adminStatusBadge: document.getElementById("adminStatusBadge"),
-  loginForm: document.getElementById("loginForm"),
-  adminPassword: document.getElementById("adminPassword"),
-  adminPanel: document.getElementById("adminPanel"),
+const elements = {};
+
+// ⭐ NEW: This forces the script to wait until the HTML is 100% loaded before running
+document.addEventListener("DOMContentLoaded", () => {
+  elements.adminStatusBadge = document.getElementById("adminStatusBadge");
+  elements.loginForm = document.getElementById("loginForm");
+  elements.adminPassword = document.getElementById("adminPassword");
+  elements.adminPanel = document.getElementById("adminPanel");
   
-  currentRoundPanel: document.getElementById("currentRoundPanel"),
-  displayRoundDate: document.getElementById("displayRoundDate"),
-  displayCourse: document.getElementById("displayCourse"),
-  displayFormat: document.getElementById("displayFormat"),
-  deleteRoundBtn: document.getElementById("deleteRoundBtn"),
+  elements.currentRoundPanel = document.getElementById("currentRoundPanel");
+  elements.displayRoundDate = document.getElementById("displayRoundDate");
+  elements.displayCourse = document.getElementById("displayCourse");
+  elements.displayFormat = document.getElementById("displayFormat");
+  elements.deleteRoundBtn = document.getElementById("deleteRoundBtn");
 
-  roundDate: document.getElementById("roundDate"),
-  courseSelect: document.getElementById("courseSelect"),
-  scoringMode: document.getElementById("scoringMode"),
-  teamCount: document.getElementById("teamCount"),
-  buildTeamsButton: document.getElementById("buildTeamsButton"),
-  teamsContainer: document.getElementById("teamsContainer"),
-  saveRoundButton: document.getElementById("saveRoundButton"),
-  message: document.getElementById("message")
-};
+  elements.roundDate = document.getElementById("roundDate");
+  elements.courseSelect = document.getElementById("courseSelect");
+  elements.scoringMode = document.getElementById("scoringMode");
+  elements.teamCount = document.getElementById("teamCount");
+  elements.buildTeamsButton = document.getElementById("buildTeamsButton");
+  elements.teamsContainer = document.getElementById("teamsContainer");
+  elements.saveRoundButton = document.getElementById("saveRoundButton");
+  elements.message = document.getElementById("message");
 
-if (elements.loginForm) {
-  elements.loginForm.addEventListener("submit", handleLogin);
-}
+  if (elements.loginForm) {
+    elements.loginForm.addEventListener("submit", handleLogin);
+  }
 
-elements.buildTeamsButton?.addEventListener("click", buildTeamBoxes);
-elements.saveRoundButton?.addEventListener("click", saveActiveRound);
-elements.deleteRoundBtn?.addEventListener("click", deleteActiveRound);
+  elements.buildTeamsButton?.addEventListener("click", buildTeamBoxes);
+  elements.saveRoundButton?.addEventListener("click", saveActiveRound);
+  elements.deleteRoundBtn?.addEventListener("click", deleteActiveRound);
+});
 
 async function handleLogin(event) {
-  event.preventDefault();
+  // We already block the form in the HTML now, but we add this here as double-protection
+  if (event) event.preventDefault(); 
   clearMessage();
 
   const password = elements.adminPassword?.value;
@@ -97,7 +101,6 @@ async function loadAdminData() {
     const today = new Date();
     if (elements.roundDate) elements.roundDate.value = today.toISOString().slice(0, 10);
 
-    // ⭐ DASHBOARD LOGIC: Pre-fill the form and player boxes if a round is active
     if (activeRoundResponse.ok) {
       const activeData = await activeRoundResponse.json();
       
@@ -113,7 +116,6 @@ async function loadAdminData() {
         if (elements.courseSelect && activeData.courseName) elements.courseSelect.value = activeData.courseName;
         if (elements.scoringMode && activeData.scoringMode) elements.scoringMode.value = activeData.scoringMode;
 
-        // Automatically build and pre-fill the team boxes with the active players!
         if (activeData.teams && activeData.teams.length > 0) {
           if (elements.teamCount) elements.teamCount.value = activeData.teams.length;
           
@@ -133,12 +135,11 @@ async function loadAdminData() {
           const teamCards = Array.from(document.querySelectorAll(".team-card"));
           teamCards.forEach(updateTeamRating);
           updatePlayerAvailability();
-          return; // Stop here so we don't accidentally build blank boxes below
+          return; 
         }
       }
     }
 
-    // If there is no active round, just build default blank boxes
     buildTeamBoxes();
   } catch (error) {
     showMessage(error.message || "Unable to load admin data.");
@@ -167,7 +168,6 @@ async function deleteActiveRound() {
     adminState.activeToken = "";
     if (elements.currentRoundPanel) elements.currentRoundPanel.classList.add("hidden");
     
-    // Reset form to defaults
     if (elements.teamCount) elements.teamCount.value = 2;
     buildTeamBoxes();
 
