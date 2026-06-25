@@ -4,100 +4,81 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <title>Kee Golf League Scorecard</title>
+  <title>Kee Golf League - Scorecard</title>
 
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <main class="page-shell">
-    <section class="card scorecard-card compact-scorecard-card">
-      <div class="scorecard-top-bar">
+    <section class="card admin-card">
+      <div class="header">
         <div>
           <p class="eyebrow">Kee Golf League</p>
           <h1 id="courseName">Scorecard</h1>
         </div>
 
-        <div class="scorecard-top-actions">
-          <button id="scorecardAdminButton" type="button" class="secondary-button hidden">
-            Admin
-          </button>
-
-          <div class="badge" id="scorecardBadge">Loading</div>
-        </div>
+        <div class="badge" id="scorecardBadge">Loading...</div>
       </div>
 
+      <button id="scorecardAdminButton" type="button" class="nav-button hidden" style="margin-bottom: 1.5rem; background: var(--primary-dark); color: white;">
+        ⚙️ Return to Admin Panel
+      </button>
+
       <section id="scorecardView">
-        <div class="scorecard-toolbar compact-toolbar">
-          <button id="prevHoleWindowButton" type="button" class="secondary-button">
-            Back
-          </button>
-
-          <div>
-            <p class="eyebrow">Showing</p>
-            <h2 id="holeWindowLabel">Holes 1-5</h2>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <button id="prevHoleWindowButton" class="nav-button" type="button">Back</button>
+          
+          <div style="text-align: center;">
+            <span style="font-size: 0.75rem; text-transform: uppercase; color: var(--muted-text); font-weight: 600;">Showing</span><br/>
+            <strong id="holeWindowLabel" style="font-size: 1.1rem;">Holes 1-5</strong>
           </div>
-
-          <button id="nextHoleWindowButton" type="button" class="secondary-button">
-            Next
-          </button>
+          
+          <button id="nextHoleWindowButton" class="nav-button" type="button">Next</button>
         </div>
 
-        <button id="toggleFullCardButton" type="button" class="secondary-button full-width-button">
+        <button id="toggleFullCardButton" class="nav-button" type="button" style="width: 100%; margin-bottom: 1.5rem;">
           Show Entire Card
         </button>
 
-        <div id="scorecardTableWrapper" class="scorecard-table-wrapper"></div>
+        <div id="scorecardTableWrapper" style="overflow-x: auto; margin-bottom: 1rem;">
+          </div>
       </section>
 
       <section id="scoreEntryView" class="hidden">
-        <section class="score-entry-simple">
-          <p class="eyebrow" id="entryTypeLabel">Team Score</p>
+        <div style="text-align: center; margin-bottom: 1.5rem; padding: 1rem; border: 1px solid var(--border-color); border-radius: 8px; background: #fdfdfd;">
+          <p id="entryTypeLabel" class="eyebrow">Score Entry</p>
+          <h2 id="entryMainTitle" style="margin: 0.5rem 0;">Hole</h2>
+          <h3 id="entryParticipantName" style="color: var(--primary);">Player</h3>
+          <div id="entryParBadge" class="badge" style="margin: 0.75rem auto 0 auto;">Par -</div>
+        </div>
 
-          <h1 id="entryMainTitle">Michigan Meadows Hole 1</h1>
-
-          <div class="entry-subtitle">
-            <span id="entryParticipantName">Team 1</span>
-            <span id="entryParBadge">Par 4</span>
-          </div>
-
-          <label class="score-input-label centered-label" for="entryScoreInput">
-            Enter Score
-          </label>
-
-          <input
-            id="entryScoreInput"
-            class="big-score-input"
-            type="number"
-            min="1"
-            max="20"
-            inputmode="numeric"
-            placeholder="Score"
+        <div style="display: flex; justify-content: center; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+          <button id="prevEntryHoleButton" class="nav-button" type="button">&larr; Prev Hole</button>
+          
+          <input 
+            id="entryScoreInput" 
+            type="number" 
+            style="width: 80px; text-align: center; font-size: 1.5rem; padding: 0.5rem;" 
+            placeholder="-" 
           />
+          
+          <button id="nextEntryHoleButton" class="nav-button" type="button">Next Hole &rarr;</button>
+        </div>
 
-          <button id="saveEntryScoreButton" type="button" class="big-save-button">
+        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <button id="saveEntryScoreButton" type="button" style="padding: 0.75rem; font-size: 1.1rem;">
             Save Score
           </button>
-
-          <div class="score-entry-actions">
-            <button id="prevEntryHoleButton" type="button" class="secondary-button">
-              Back Hole
-            </button>
-
-            <button id="nextEntryHoleButton" type="button" class="secondary-button">
-              Next Hole
-            </button>
-          </div>
-
-          <button id="returnToScorecardButton" type="button" class="secondary-button full-width-button">
+          <button id="returnToScorecardButton" type="button" class="nav-button" style="padding: 0.75rem; font-size: 1.1rem;">
             Return to Scorecard
           </button>
-        </section>
+        </div>
       </section>
 
       <section id="message" class="message hidden"></section>
     </section>
   </main>
 
-  <script src="scorecard.js"></script>
+  <script src="scorecard.js?v=3"></script>
 </body>
 </html>
