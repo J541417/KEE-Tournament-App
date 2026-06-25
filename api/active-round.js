@@ -27,21 +27,18 @@ export default async function handler(req, res) {
       String(row.status || "").trim().toLowerCase() === "active"
     );
 
-    // ⭐ NEW: Grab all teams attached to this specific round
     const teamRows = rows.filter((row) => 
       String(row.record_type || "").trim() === "team" &&
       String(row.round_id || "").trim() === String(activeRound.round_id || "").trim() &&
       String(row.status || "").trim().toLowerCase() === "active"
     );
 
-    // ⭐ NEW: Grab all players attached to this specific round
     const playerRows = rows.filter((row) => 
       String(row.record_type || "").trim() === "round_player" &&
       String(row.round_id || "").trim() === String(activeRound.round_id || "").trim() &&
       String(row.status || "").trim().toLowerCase() === "active"
     );
 
-    // ⭐ NEW: Bundle the players into their correct team boxes
     const teams = teamRows.map((team) => {
       const teamPlayers = playerRows
         .filter((p) => String(p.team_id || "").trim() === String(team.team_id || "").trim())
@@ -57,16 +54,24 @@ export default async function handler(req, res) {
       };
     });
 
+    // ⭐ DATE TRANSLATOR FIX
+    let displayDate = activeRound.round_date || "";
+    if (!isNaN(displayDate) && Number(displayDate) > 40000) {
+      // Translates the Google Sheet 5-digit number into YYYY-MM-DD
+      const jsDate = new Date(Math.round((Number(displayDate) - 25569) * 86400 * 1000));
+      displayDate = jsDate.toISOString().split("T")[0];
+    }
+
     return res.status(200).json({
       active: true,
       tournamentId: activeRound.tournament_id || "",
       roundId: activeRound.round_id || "",
       roundNumber: activeRound.round_number || "",
       courseName: activeRound.course_name || "",
-      roundDate: activeRound.round_date || "",
+      roundDate: displayDate, // Send the safely translated date
       scoringMode: activeRound.scoring_mode || "",
       token: tokenRow ? String(tokenRow.token || "").trim() : "",
-      teams: teams // Send the fully built teams back to the frontend!
+      teams: teams
     });
   } catch (error) {
     return res.status(500).json({
