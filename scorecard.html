@@ -15,6 +15,7 @@
         <div>
           <p class="eyebrow">Kee Golf League</p>
           <h1 id="courseName">Scorecard</h1>
+          <p id="scorecardDate" style="color: var(--muted-text); font-size: 0.9rem; margin-top: 0.25rem;"></p>
         </div>
 
         <div class="badge" id="scorecardBadge">Loading...</div>
@@ -36,9 +37,14 @@
           <button id="nextHoleWindowButton" class="nav-button" type="button">Next</button>
         </div>
 
-        <button id="toggleFullCardButton" class="nav-button" type="button" style="width: 100%; margin-bottom: 1.5rem;">
-          Show Entire Card
-        </button>
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem;">
+          <button id="toggleFullCardButton" class="nav-button" type="button" style="flex: 1;">
+            Show Entire Card
+          </button>
+          <button id="globalEnterScoresButton" type="button" style="flex: 1; padding: 0.5rem; font-size: 1rem;">
+            Enter Scores
+          </button>
+        </div>
 
         <div id="scorecardTableWrapper" style="overflow-x: auto; margin-bottom: 1rem;">
           </div>
@@ -53,7 +59,7 @@
         </div>
 
         <div style="display: flex; justify-content: center; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
-          <button id="prevEntryHoleButton" class="nav-button" type="button">&larr; Prev Hole</button>
+          <button id="prevEntryHoleButton" class="nav-button" type="button">&larr; Prev</button>
           
           <input 
             id="entryScoreInput" 
@@ -62,12 +68,12 @@
             placeholder="-" 
           />
           
-          <button id="nextEntryHoleButton" class="nav-button" type="button">Next Hole &rarr;</button>
+          <button id="nextEntryHoleButton" class="nav-button" type="button">Next &rarr;</button>
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 0.75rem;">
           <button id="saveEntryScoreButton" type="button" style="padding: 0.75rem; font-size: 1.1rem;">
-            Save Score
+            Save & Close
           </button>
           <button id="returnToScorecardButton" type="button" class="nav-button" style="padding: 0.75rem; font-size: 1.1rem;">
             Return to Scorecard
@@ -79,6 +85,6 @@
     </section>
   </main>
 
-  <script src="scorecard.js?v=3"></script>
+  <script src="scorecard.js?v=4"></script>
 </body>
 </html>
