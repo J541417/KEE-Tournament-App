@@ -20,21 +20,19 @@
         <div class="badge" id="adminStatusBadge">Locked</div>
       </div>
 
-      <form id="loginForm" class="lookup-form" onsubmit="event.preventDefault();">
+      <div id="loginBox" class="lookup-form">
         <label for="adminPassword">Admin Password</label>
 
         <div class="input-row">
           <input
             id="adminPassword"
-            name="adminPassword"
             type="password"
-            autocomplete="current-password"
-            required
+            placeholder="Enter password..."
           />
 
-          <button type="submit">Log In</button>
+          <button id="doLoginButton" type="button">Log In</button>
         </div>
-      </form>
+      </div>
 
       <section id="adminPanel" class="hidden">
         
@@ -101,6 +99,6 @@
     </section>
   </main>
 
-  <script src="admin.js?v=9"></script>
+  <script src="admin.js?v=10"></script>
 </body>
 </html>
