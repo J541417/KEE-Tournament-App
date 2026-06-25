@@ -282,4 +282,331 @@ function buildIndividualScoreRow(team, player, holes) {
   });
 
   const plusMinusCell = document.createElement("td");
-  plus
+  plusMinusCell.textContent = formatPlusMinus(calculateIndividualPlusMinus(player.playerId));
+  row.appendChild(plusMinusCell);
+
+  const actionCell = document.createElement("td");
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "small-enter-button";
+  button.textContent = "Enter";
+  
+  const isMe = String(player.playerId || "") === String(scorecardState.scorecard.loggedInPlayerId || "");
+  button.disabled = !(isUserAdmin() || isMe);
+
+  button.addEventListener("click", () => {
+    openScoreEntry({
+      mode: "individual",
+      team,
+      player,
+      holeNumber: scorecardState.visibleStartHole
+    });
+  });
+
+  actionCell.appendChild(button);
+  row.appendChild(actionCell);
+
+  return row;
+}
+
+function getVisibleHoles() {
+  if (scorecardState.showFullCard) {
+    return scorecardState.scorecard.holes;
+  }
+
+  return scorecardState.scorecard.holes.filter((hole) =>
+    hole.holeNumber >= scorecardState.visibleStartHole &&
+    hole.holeNumber <= scorecardState.visibleStartHole + 4
+  );
+}
+
+function moveHoleWindow(direction) {
+  scorecardState.visibleStartHole += direction;
+
+  if (scorecardState.visibleStartHole < 1) {
+    scorecardState.visibleStartHole = 1;
+  }
+
+  if (scorecardState.visibleStartHole > 14) {
+    scorecardState.visibleStartHole = 14;
+  }
+
+  renderScorecardTable();
+}
+
+function toggleFullCard() {
+  scorecardState.showFullCard = !scorecardState.showFullCard;
+  renderScorecardTable();
+}
+
+// ⭐ NEW: Intelligence for the global enter button
+function openGlobalScoreEntry() {
+  const scorecard = scorecardState.scorecard;
+  if (!scorecard || !scorecard.teams || scorecard.teams.length === 0) return;
+
+  // Default to the first team/player if we can't figure out who they are
+  let targetTeam = scorecard.teams[0];
+  let targetPlayer = targetTeam.players[0] || null;
+
+  // If they are on a team, select their team
+  if (scorecard.loggedInTeamId) {
+    const foundTeam = scorecard.teams.find(t => String(t.teamId) === String(scorecard.loggedInTeamId));
+    if (foundTeam) targetTeam = foundTeam;
+  }
+  
+  // If they are a specific player, select them
+  if (scorecard.loggedInPlayerId && String(scorecard.loggedInPlayerId).toLowerCase() !== "admin") {
+    for (const t of scorecard.teams) {
+      const p = t.players.find(pl => String(pl.playerId) === String(scorecard.loggedInPlayerId));
+      if (p) {
+        targetTeam = t;
+        targetPlayer = p;
+        break;
+      }
+    }
+  }
+
+  openScoreEntry({
+    mode: scorecard.scoringMode,
+    team: targetTeam,
+    player: targetPlayer,
+    holeNumber: scorecardState.visibleStartHole
+  });
+}
+
+function openScoreEntry({ mode, team, player, holeNumber }) {
+  clearMessage();
+
+  scorecardState.entryTarget = {
+    mode,
+    team,
+    player,
+    holeNumber
+  };
+
+  renderEntryView();
+
+  if (elements.scorecardView) elements.scorecardView.classList.add("hidden");
+  if (elements.scoreEntryView) elements.scoreEntryView.classList.remove("hidden");
+
+  setTimeout(() => {
+    if (elements.entryScoreInput) {
+      elements.entryScoreInput.focus();
+      elements.entryScoreInput.select();
+    }
+  }, 50);
+}
+
+function renderEntryView() {
+  const target = scorecardState.entryTarget;
+  const hole = scorecardState.scorecard.holes.find((item) =>
+    Number(item.holeNumber) === Number(target.holeNumber)
+  );
+
+  const participantName = target.mode === "team"
+    ? `Team ${target.team.teamNumber}`
+    : target.player.playerName;
+
+  const currentScore = target.mode === "team"
+    ? getTeamScore(target.team.teamId, target.holeNumber)
+    : getIndividualScore(target.player.playerId, target.holeNumber);
+
+  if (elements.entryTypeLabel) elements.entryTypeLabel.textContent = target.mode === "team" ? "Team Score" : "Individual Score";
+  if (elements.entryMainTitle) elements.entryMainTitle.textContent = `${scorecardState.scorecard.courseName} Hole ${target.holeNumber}`;
+  if (elements.entryParticipantName) elements.entryParticipantName.textContent = participantName;
+  if (elements.entryParBadge) elements.entryParBadge.textContent = `Par ${hole?.par || "-"}`;
+  if (elements.entryScoreInput) elements.entryScoreInput.value = currentScore || "";
+
+  if (elements.prevEntryHoleButton) elements.prevEntryHoleButton.disabled = target.holeNumber <= 1;
+  if (elements.nextEntryHoleButton) elements.nextEntryHoleButton.disabled = target.holeNumber >= 18;
+}
+
+// ⭐ NEW: Auto-save logic wired into moving holes
+async function moveEntryHole(direction) {
+  if (!scorecardState.entryTarget) return;
+
+  // Temporarily disable buttons to prevent spamming
+  if (elements.prevEntryHoleButton) elements.prevEntryHoleButton.disabled = true;
+  if (elements.nextEntryHoleButton) elements.nextEntryHoleButton.disabled = true;
+
+  // 1. Auto-save the score they just entered (but do NOT close the view)
+  await saveEntryScore(false);
+
+  // 2. Move to the next/prev hole
+  scorecardState.entryTarget.holeNumber += direction;
+
+  if (scorecardState.entryTarget.holeNumber < 1) {
+    scorecardState.entryTarget.holeNumber = 1;
+  }
+
+  if (scorecardState.entryTarget.holeNumber > 18) {
+    scorecardState.entryTarget.holeNumber = 18;
+  }
+
+  // 3. Render the new hole
+  renderEntryView();
+}
+
+// ⭐ NEW: Updated to handle Auto-Saving silently
+async function saveEntryScore(closeView = true) {
+  const target = scorecardState.entryTarget;
+  if (!target) return;
+
+  const btn = elements.saveEntryScoreButton;
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = closeView ? "Saving..." : "Save & Close"; 
+  }
+
+  try {
+    await saveScore({
+      scoringMode: target.mode === "team" ? "team" : "individual",
+      teamId: target.team.teamId,
+      playerId: target.player?.playerId || "",
+      holeNumber: target.holeNumber,
+      score: elements.entryScoreInput?.value || ""
+    });
+
+    if (closeView) {
+      showScorecardView();
+      showSuccess("Score saved.");
+    }
+  } catch (error) {
+    showMessage(error.message || "Unable to save score.");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Save & Close";
+    }
+  }
+}
+
+async function saveScore({ scoringMode, teamId, playerId, holeNumber, score }) {
+  clearMessage();
+
+  const response = await fetch("/api/save-score", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      token: scorecardState.token,
+      scoringMode,
+      roundId: scorecardState.scorecard.roundId,
+      teamId,
+      playerId,
+      holeNumber,
+      score
+    })
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || "Unable to save score.");
+  }
+
+  // Reload the background data so the local math is always 100% accurate
+  await loadScorecard();
+}
+
+function showScorecardView() {
+  clearMessage();
+  if (elements.scoreEntryView) elements.scoreEntryView.classList.add("hidden");
+  if (elements.scorecardView) elements.scorecardView.classList.remove("hidden");
+  renderScorecardTable();
+}
+
+function getTeamScore(teamId, holeNumber) {
+  const key = `team:${teamId}:hole:${holeNumber}`;
+  return scorecardState.scorecard.scores[key]?.score || "";
+}
+
+function getIndividualScore(playerId, holeNumber) {
+  const key = `player:${playerId}:hole:${holeNumber}`;
+  return scorecardState.scorecard.scores[key]?.score || "";
+}
+
+function calculateTeamPlusMinus(teamId) {
+  let scoreTotal = 0;
+  let parTotal = 0;
+
+  scorecardState.scorecard.holes.forEach((hole) => {
+    const score = getTeamScore(teamId, hole.holeNumber);
+
+    if (score) {
+      scoreTotal += Number(score);
+      parTotal += Number(hole.par || 0);
+    }
+  });
+
+  if (parTotal === 0) {
+    return null;
+  }
+
+  return scoreTotal - parTotal;
+}
+
+function calculateIndividualPlusMinus(playerId) {
+  let scoreTotal = 0;
+  let parTotal = 0;
+
+  scorecardState.scorecard.holes.forEach((hole) => {
+    const score = getIndividualScore(playerId, hole.holeNumber);
+
+    if (score) {
+      scoreTotal += Number(score);
+      parTotal += Number(hole.par || 0);
+    }
+  });
+
+  if (parTotal === 0) {
+    return null;
+  }
+
+  return scoreTotal - parTotal;
+}
+
+function formatPlusMinus(value) {
+  if (value === null || value === undefined) {
+    return "-";
+  }
+
+  if (value === 0) {
+    return "E";
+  }
+
+  return value > 0 ? `+${value}` : String(value);
+}
+
+function showMessage(text) {
+  if (!elements.message) return;
+  elements.message.textContent = text;
+  elements.message.classList.remove("hidden");
+  elements.message.style.background = "var(--danger-bg)";
+  elements.message.style.color = "var(--danger-text)";
+}
+
+function showSuccess(text) {
+  if (!elements.message) return;
+  elements.message.textContent = text;
+  elements.message.classList.remove("hidden");
+  elements.message.style.background = "#ecf7ef";
+  elements.message.style.color = "var(--primary-dark)";
+}
+
+function clearMessage() {
+  if (!elements.message) return;
+  elements.message.textContent = "";
+  elements.message.classList.add("hidden");
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+// END OF FILE
