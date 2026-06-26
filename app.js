@@ -70,7 +70,8 @@ async function handleLookupSubmit(event) {
   const search = elements.playerSearch.value.trim();
 
   if (!search) {
-    showMessage("Please enter your first or last name.");
+    // ⭐ UPDATED TEXT: Now prompts for first and/or last name
+    showMessage("Please enter your first and/or last name.");
     return;
   }
 
