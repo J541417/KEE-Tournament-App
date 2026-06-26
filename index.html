@@ -49,8 +49,8 @@
         </div>
       </section>
 
-      <form id="lookupForm" class="lookup-form hidden">
-        <label for="playerSearch">Enter your first or last name</label>
+      <form id="lookupForm" class="lookup-form hidden" onsubmit="event.preventDefault();">
+        <label for="playerSearch">Enter your first and/or last name</label>
 
         <div class="input-row">
           <input
@@ -73,6 +73,6 @@
     </section>
   </main>
 
-  <script src="/app.js"></script>
+  <script src="/app.js?v=2"></script>
 </body>
 </html>
