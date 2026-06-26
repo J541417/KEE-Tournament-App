@@ -41,7 +41,6 @@ elements.prevHoleWindowButton?.addEventListener("click", () => moveHoleWindow(-5
 elements.nextHoleWindowButton?.addEventListener("click", () => moveHoleWindow(5));
 elements.toggleFullCardButton?.addEventListener("click", toggleFullCard);
 
-// ⭐ NEW: Hooking up the global Enter button
 elements.globalEnterScoresButton?.addEventListener("click", openGlobalScoreEntry);
 
 elements.scorecardAdminButton?.addEventListener("click", () => {
@@ -51,7 +50,6 @@ elements.scorecardAdminButton?.addEventListener("click", () => {
 elements.prevEntryHoleButton?.addEventListener("click", () => moveEntryHole(-1));
 elements.nextEntryHoleButton?.addEventListener("click", () => moveEntryHole(1));
 
-// ⭐ NEW: The Save button now tells the code to explicitly close the view when done
 elements.saveEntryScoreButton?.addEventListener("click", (e) => {
   e.preventDefault();
   saveEntryScore(true);
@@ -106,7 +104,6 @@ function renderScorecardHeader() {
     elements.courseName.textContent = scorecard.courseName || "Scorecard";
   }
   
-  // ⭐ NEW: Display the translated date!
   if (elements.scorecardDate) {
     elements.scorecardDate.textContent = scorecard.roundDate || "";
   }
@@ -233,6 +230,17 @@ function buildTeamScoreRow(team, holes) {
     const score = getTeamScore(team.teamId, hole.holeNumber);
     const cell = document.createElement("td");
     cell.textContent = score || "-";
+
+    // ⭐ NEW: Highlight the outright lowest score on this hole
+    if (score !== "") {
+      const outrightWinnerId = getOutrightLowest(hole.holeNumber);
+      if (outrightWinnerId === team.teamId) {
+        cell.style.backgroundColor = "#e8f5e9";
+        cell.style.fontWeight = "bold";
+        cell.style.color = "#1b5e20";
+      }
+    }
+
     row.appendChild(cell);
   });
 
@@ -278,6 +286,17 @@ function buildIndividualScoreRow(team, player, holes) {
     const score = getIndividualScore(player.playerId, hole.holeNumber);
     const cell = document.createElement("td");
     cell.textContent = score || "-";
+
+    // ⭐ NEW: Highlight the outright lowest score on this hole
+    if (score !== "") {
+      const outrightWinnerId = getOutrightLowest(hole.holeNumber);
+      if (outrightWinnerId === player.playerId) {
+        cell.style.backgroundColor = "#e8f5e9";
+        cell.style.fontWeight = "bold";
+        cell.style.color = "#1b5e20";
+      }
+    }
+
     row.appendChild(cell);
   });
 
@@ -339,22 +358,18 @@ function toggleFullCard() {
   renderScorecardTable();
 }
 
-// ⭐ NEW: Intelligence for the global enter button
 function openGlobalScoreEntry() {
   const scorecard = scorecardState.scorecard;
   if (!scorecard || !scorecard.teams || scorecard.teams.length === 0) return;
 
-  // Default to the first team/player if we can't figure out who they are
   let targetTeam = scorecard.teams[0];
   let targetPlayer = targetTeam.players[0] || null;
 
-  // If they are on a team, select their team
   if (scorecard.loggedInTeamId) {
     const foundTeam = scorecard.teams.find(t => String(t.teamId) === String(scorecard.loggedInTeamId));
     if (foundTeam) targetTeam = foundTeam;
   }
   
-  // If they are a specific player, select them
   if (scorecard.loggedInPlayerId && String(scorecard.loggedInPlayerId).toLowerCase() !== "admin") {
     for (const t of scorecard.teams) {
       const p = t.players.find(pl => String(pl.playerId) === String(scorecard.loggedInPlayerId));
@@ -421,18 +436,14 @@ function renderEntryView() {
   if (elements.nextEntryHoleButton) elements.nextEntryHoleButton.disabled = target.holeNumber >= 18;
 }
 
-// ⭐ NEW: Auto-save logic wired into moving holes
 async function moveEntryHole(direction) {
   if (!scorecardState.entryTarget) return;
 
-  // Temporarily disable buttons to prevent spamming
   if (elements.prevEntryHoleButton) elements.prevEntryHoleButton.disabled = true;
   if (elements.nextEntryHoleButton) elements.nextEntryHoleButton.disabled = true;
 
-  // 1. Auto-save the score they just entered (but do NOT close the view)
   await saveEntryScore(false);
 
-  // 2. Move to the next/prev hole
   scorecardState.entryTarget.holeNumber += direction;
 
   if (scorecardState.entryTarget.holeNumber < 1) {
@@ -443,11 +454,9 @@ async function moveEntryHole(direction) {
     scorecardState.entryTarget.holeNumber = 18;
   }
 
-  // 3. Render the new hole
   renderEntryView();
 }
 
-// ⭐ NEW: Updated to handle Auto-Saving silently
 async function saveEntryScore(closeView = true) {
   const target = scorecardState.entryTarget;
   if (!target) return;
@@ -506,7 +515,6 @@ async function saveScore({ scoringMode, teamId, playerId, holeNumber, score }) {
     throw new Error(data.error || "Unable to save score.");
   }
 
-  // Reload the background data so the local math is always 100% accurate
   await loadScorecard();
 }
 
@@ -565,6 +573,34 @@ function calculateIndividualPlusMinus(playerId) {
   }
 
   return scoreTotal - parTotal;
+}
+
+// ⭐ NEW: Math engine to find the outright lowest score per hole
+function getOutrightLowest(holeNumber) {
+  const scorecard = scorecardState.scorecard;
+  let scores = [];
+
+  if (scorecard.scoringMode === "team") {
+    scorecard.teams.forEach((team) => {
+      const score = getTeamScore(team.teamId, holeNumber);
+      if (score !== "") scores.push({ id: team.teamId, val: Number(score) });
+    });
+  } else {
+    scorecard.teams.forEach((team) => {
+      team.players.forEach((player) => {
+        const score = getIndividualScore(player.playerId, holeNumber);
+        if (score !== "") scores.push({ id: player.playerId, val: Number(score) });
+      });
+    });
+  }
+
+  if (scores.length === 0) return null;
+
+  const minScore = Math.min(...scores.map((s) => s.val));
+  const lowScores = scores.filter((s) => s.val === minScore);
+
+  // If exactly ONE team/player has the minimum score, return their ID. If it's a tie, return null.
+  return lowScores.length === 1 ? lowScores[0].id : null;
 }
 
 function formatPlusMinus(value) {
