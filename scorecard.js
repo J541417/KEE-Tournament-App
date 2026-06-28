@@ -28,7 +28,8 @@ const elements = {
   saveEntryScoreButton: document.getElementById("saveEntryScoreButton"),
   nextEntryHoleButton: document.getElementById("nextEntryHoleButton"),
   returnToScorecardButton: document.getElementById("returnToScorecardButton"),
-  message: document.getElementById("message")
+  message: document.getElementById("message"),
+  jumpToHoleSelect: document.getElementById("jumpToHoleSelect") // ⭐ NEW: The Dropdown
 };
 
 if (document.readyState === "loading") {
@@ -49,6 +50,20 @@ elements.scorecardAdminButton?.addEventListener("click", () => {
 
 elements.prevEntryHoleButton?.addEventListener("click", () => moveEntryHole(-1));
 elements.nextEntryHoleButton?.addEventListener("click", () => moveEntryHole(1));
+
+// ⭐ NEW: Dropdown Listener
+elements.jumpToHoleSelect?.addEventListener("change", async (e) => {
+  if (!scorecardState.entryTarget) return;
+  
+  // Auto-save the current hole before jumping
+  await saveEntryScore(false); 
+  
+  // Update the target hole to whatever the user selected
+  scorecardState.entryTarget.holeNumber = parseInt(e.target.value, 10);
+  
+  // Re-render the view for the new hole
+  renderEntryView();
+});
 
 elements.saveEntryScoreButton?.addEventListener("click", (e) => {
   e.preventDefault();
@@ -231,7 +246,6 @@ function buildTeamScoreRow(team, holes) {
     const cell = document.createElement("td");
     cell.textContent = score || "-";
 
-    // ⭐ NEW: Highlight the outright lowest score on this hole
     if (score !== "") {
       const outrightWinnerId = getOutrightLowest(hole.holeNumber);
       if (outrightWinnerId === team.teamId) {
@@ -287,7 +301,6 @@ function buildIndividualScoreRow(team, player, holes) {
     const cell = document.createElement("td");
     cell.textContent = score || "-";
 
-    // ⭐ NEW: Highlight the outright lowest score on this hole
     if (score !== "") {
       const outrightWinnerId = getOutrightLowest(hole.holeNumber);
       if (outrightWinnerId === player.playerId) {
@@ -432,6 +445,11 @@ function renderEntryView() {
   if (elements.entryParBadge) elements.entryParBadge.textContent = `Par ${hole?.par || "-"}`;
   if (elements.entryScoreInput) elements.entryScoreInput.value = currentScore || "";
 
+  // ⭐ NEW: Make sure the dropdown is always synced to the current hole
+  if (elements.jumpToHoleSelect) {
+    elements.jumpToHoleSelect.value = target.holeNumber;
+  }
+
   if (elements.prevEntryHoleButton) elements.prevEntryHoleButton.disabled = target.holeNumber <= 1;
   if (elements.nextEntryHoleButton) elements.nextEntryHoleButton.disabled = target.holeNumber >= 18;
 }
@@ -575,7 +593,6 @@ function calculateIndividualPlusMinus(playerId) {
   return scoreTotal - parTotal;
 }
 
-// ⭐ NEW: Math engine to find the outright lowest score per hole
 function getOutrightLowest(holeNumber) {
   const scorecard = scorecardState.scorecard;
   let scores = [];
@@ -599,7 +616,6 @@ function getOutrightLowest(holeNumber) {
   const minScore = Math.min(...scores.map((s) => s.val));
   const lowScores = scores.filter((s) => s.val === minScore);
 
-  // If exactly ONE team/player has the minimum score, return their ID. If it's a tie, return null.
   return lowScores.length === 1 ? lowScores[0].id : null;
 }
 
@@ -645,4 +661,3 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 }
-// END OF FILE
