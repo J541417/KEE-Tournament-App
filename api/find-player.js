@@ -2,9 +2,22 @@ import { appendDataRows, getDataRows, getRows, TAB_NAMES } from "../lib/googleSh
 import {
   isAdminValue,
   makeToken,
-  nameMatchesSearch,
   normalizePhone
 } from "../lib/playerUtils.js";
+
+// ⭐ NEW SEARCH ENGINE: Smartly handles First, Last, or Full Names
+function isNameMatch(dbName, searchInput) {
+  const name = String(dbName || "").toLowerCase().trim();
+  const search = String(searchInput || "").toLowerCase().trim();
+
+  if (!name || !search) return false;
+
+  // Split whatever they typed into separate words
+  const searchWords = search.split(/\s+/);
+
+  // Return true ONLY if every word they typed exists in their database name
+  return searchWords.every((word) => name.includes(word));
+}
 
 export default async function handler(req, res) {
   if (req.method !== "POST" && req.method !== "GET") {
@@ -45,7 +58,7 @@ export default async function handler(req, res) {
       .filter((player) =>
         player.playerId &&
         player.playerName &&
-        nameMatchesSearch(player.playerName, searchValue)
+        isNameMatch(player.playerName, searchValue) // ⭐ Hooked up new engine here
       );
 
     if (allMatchingPlayers.length === 0) {
