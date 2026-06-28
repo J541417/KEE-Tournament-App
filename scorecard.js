@@ -29,7 +29,7 @@ const elements = {
   nextEntryHoleButton: document.getElementById("nextEntryHoleButton"),
   returnToScorecardButton: document.getElementById("returnToScorecardButton"),
   message: document.getElementById("message"),
-  jumpToHoleSelect: document.getElementById("jumpToHoleSelect") // ⭐ NEW: The Dropdown
+  jumpToHoleSelect: document.getElementById("jumpToHoleSelect") 
 };
 
 if (document.readyState === "loading") {
@@ -51,17 +51,11 @@ elements.scorecardAdminButton?.addEventListener("click", () => {
 elements.prevEntryHoleButton?.addEventListener("click", () => moveEntryHole(-1));
 elements.nextEntryHoleButton?.addEventListener("click", () => moveEntryHole(1));
 
-// ⭐ NEW: Dropdown Listener
 elements.jumpToHoleSelect?.addEventListener("change", async (e) => {
   if (!scorecardState.entryTarget) return;
   
-  // Auto-save the current hole before jumping
   await saveEntryScore(false); 
-  
-  // Update the target hole to whatever the user selected
   scorecardState.entryTarget.holeNumber = parseInt(e.target.value, 10);
-  
-  // Re-render the view for the new hole
   renderEntryView();
 });
 
@@ -234,10 +228,18 @@ function buildParRow(holes) {
 function buildTeamScoreRow(team, holes) {
   const row = document.createElement("tr");
 
+  // ⭐ NEW: Chunk the names into groups of 2 and join them with a line break
+  const safeNames = team.players.map((player) => escapeHtml(player.playerName));
+  const groupedNames = [];
+  for (let i = 0; i < safeNames.length; i += 2) {
+    groupedNames.push(safeNames.slice(i, i + 2).join(", "));
+  }
+  const displayNames = groupedNames.join("<br/>");
+
   const nameCell = document.createElement("td");
   nameCell.innerHTML = `
     <strong>Team ${escapeHtml(team.teamNumber)}</strong>
-    <span class="scorecard-subtext">${escapeHtml(team.players.map((player) => player.playerName).join(", "))}</span>
+    <span class="scorecard-subtext" style="line-height: 1.4;">${displayNames}</span>
   `;
   row.appendChild(nameCell);
 
@@ -445,7 +447,6 @@ function renderEntryView() {
   if (elements.entryParBadge) elements.entryParBadge.textContent = `Par ${hole?.par || "-"}`;
   if (elements.entryScoreInput) elements.entryScoreInput.value = currentScore || "";
 
-  // ⭐ NEW: Make sure the dropdown is always synced to the current hole
   if (elements.jumpToHoleSelect) {
     elements.jumpToHoleSelect.value = target.holeNumber;
   }
