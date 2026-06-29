@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1024" />
+  <title>Kee Golf League - Player Update</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <main class="page-shell">
+    <section class="card">
+      <div class="header">
+        <div>
+          <p class="eyebrow">Player Portal</p>
+          <h1>Update Info & Dates</h1>
+        </div>
+      </div>
+
+      <div class="notice" style="margin-bottom: 20px;">
+        Please enter your First and Last name exactly as they appear on the scorecard so we can find your record!
+      </div>
+
+      <form id="playerUpdateForm" class="lookup-form" onsubmit="event.preventDefault();">
+        <div class="input-row" style="margin-bottom: 14px;">
+          <input type="text" id="firstName" placeholder="First Name" required />
+          <input type="text" id="lastName" placeholder="Last Name" required />
+        </div>
+
+        <div class="input-row" style="margin-bottom: 14px;">
+          <input type="tel" id="cellPhone" placeholder="Cell Phone Number" required />
+        </div>
+
+        <div class="input-row" style="margin-bottom: 14px;">
+          <input type="email" id="email" placeholder="Email Address" required />
+        </div>
+
+        <div class="admin-grid" style="margin-bottom: 14px; gap: 12px;">
+          <div>
+            <label for="birthdate" style="font-size: 0.9rem;">Birthdate</label>
+            <input type="date" id="birthdate" />
+          </div>
+          <div>
+            <label for="nextGolfDate" style="font-size: 0.9rem;">Next Golf Date</label>
+            <input type="date" id="nextGolfDate" />
+          </div>
+        </div>
+
+        <button type="submit" id="submitUpdateBtn" class="full-width-button" style="margin-top: 10px;">
+          Save My Information
+        </button>
+      </form>
+
+      <section id="updateMessage" class="message hidden"></section>
+    </section>
+  </main>
+
+  <script src="/player-update.js"></script>
+</body>
+</html>
