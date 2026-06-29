@@ -1,4 +1,4 @@
-import { getRows, TAB_NAMES } from "../lib/googleSheets.js";
+import { getRows, batchUpdateValues, TAB_NAMES } from "../lib/googleSheets.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -21,8 +21,6 @@ export default async function handler(req, res) {
       const dbLastName = String(playerRows[i].Last || "").toLowerCase().trim();
       
       if (dbFirstName === firstName.toLowerCase() && dbLastName === lastName.toLowerCase()) {
-        // Google sheets rows are 1-indexed, and row 1 is headers.
-        // Array index 0 = row 2 in the sheet.
         rowIndex = i + 2; 
         break;
       }
@@ -33,18 +31,30 @@ export default async function handler(req, res) {
     }
 
     const golferFullName = `${firstName} ${lastName}`;
-    const dateUpdated = new Date().toLocaleDateString(); // ⭐ New 'Date Updated' value for Column N
+    const dateUpdated = new Date().toLocaleDateString(); // ⭐ Fills your new Column N
 
     // 2. Prepare the exact data payload for Google Sheets
-    // Targeting Columns B, C, D, H, I, L, M, and N
-    
-    /* ⚠️ WE WILL PUT THE EXACT DATABASE UPDATE COMMAND HERE ⚠️
-    */
+    const updateData = [
+      {
+        range: `${TAB_NAMES.PLAYERS}!B${rowIndex}:D${rowIndex}`,
+        values: [[golferFullName, firstName, lastName]]
+      },
+      {
+        range: `${TAB_NAMES.PLAYERS}!H${rowIndex}:I${rowIndex}`,
+        values: [[cellPhone, email]]
+      },
+      {
+        range: `${TAB_NAMES.PLAYERS}!L${rowIndex}:N${rowIndex}`,
+        values: [[birthdate, nextGolfDate, dateUpdated]]
+      }
+    ];
 
-    // For now, return success to the frontend while we finish the database connection
+    // 3. Write directly to the database
+    await batchUpdateValues(updateData);
+
     return res.status(200).json({ 
       success: true, 
-      message: `Ready to update row ${rowIndex} for ${golferFullName}.` 
+      message: "Player updated successfully." 
     });
 
   } catch (error) {
