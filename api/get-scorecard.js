@@ -1,5 +1,5 @@
 import { getDataRows, getRows, TAB_NAMES } from "../lib/googleSheets.js";
-import { isAdminValue, normalizePhone } from "../lib/playerUtils.js";
+import { isAdminValue } from "../lib/playerUtils.js";
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {
@@ -23,11 +23,26 @@ export default async function handler(req, res) {
       getRows(TAB_NAMES.PLAYERS)
     ]);
 
-    const tokenRow = dataRows.find((row) =>
-      String(row.record_type || "").trim() === "scorecard_token" &&
+    // ⭐ FIX 1: Find the token on ANY row, ignoring 'record_type' restrictions
+    let tokenRow = dataRows.find((row) =>
       String(row.token || "").trim() === token &&
       String(row.status || "").trim().toLowerCase() === "active"
     );
+
+    // ⭐ FIX 2: If the token isn't explicitly saved in a 'token' column, reconstruct it!
+    if (!tokenRow && token.startsWith("player-")) {
+      const parts = token.split("-");
+      if (parts.length >= 3) {
+        const pId = parts[1];
+        const rId = parts.slice(2).join("-");
+        
+        tokenRow = dataRows.find((row) => 
+          String(row.player_id || row.playerId || "").trim() === pId &&
+          String(row.round_id || row.roundId || "").trim() === rId &&
+          String(row.status || "").trim().toLowerCase() === "active"
+        );
+      }
+    }
 
     if (!tokenRow) {
       return res.status(404).json({
@@ -35,14 +50,16 @@ export default async function handler(req, res) {
       });
     }
 
-    const roundId = tokenRow.round_id;
+    const roundId = String(tokenRow.round_id || tokenRow.roundId || "").trim();
     const tournamentId = tokenRow.tournament_id;
 
-    const round = dataRows.find((row) =>
-      String(row.record_type || "").trim() === "round" &&
-      String(row.round_id || "").trim() === String(roundId || "").trim() &&
-      String(row.status || "").trim().toLowerCase() === "active"
-    );
+    // ⭐ FIX 3: Check for 'round' OR 'round_info' exactly like our fixed search engine does
+    const round = dataRows.find((row) => {
+      const recType = String(row.record_type || "").trim().toLowerCase();
+      return (recType === "round" || recType === "round_info") &&
+             String(row.round_id || "").trim() === roundId &&
+             String(row.status || "").trim().toLowerCase() === "active";
+    });
 
     if (!round) {
       return res.status(404).json({
@@ -50,11 +67,13 @@ export default async function handler(req, res) {
       });
     }
 
-    const loggedInPlayerId = String(tokenRow.player_id || "").trim();
+    const loggedInPlayerId = String(tokenRow.player_id || tokenRow.playerId || "").trim();
 
-    const loggedInPlayerSheetRow = playerRows.find((row) =>
-      normalizePhone(row["Phone Number"]) === loggedInPlayerId
-    );
+    // ⭐ FIX 4: Rip out the old 'Phone Number' logic and use the proper Player ID
+    const loggedInPlayerSheetRow = playerRows.find((row) => {
+      const sheetPlayerId = String(row["Player ID"] || row["ID"] || row["PlayerId"] || "").trim();
+      return sheetPlayerId === loggedInPlayerId;
+    });
 
     const loggedInIsAdmin = loggedInPlayerSheetRow
       ? isAdminValue(loggedInPlayerSheetRow.Admin)
@@ -78,14 +97,14 @@ export default async function handler(req, res) {
     const teamRows = dataRows
       .filter((row) =>
         String(row.record_type || "").trim() === "team" &&
-        String(row.round_id || "").trim() === String(roundId || "").trim() &&
+        String(row.round_id || "").trim() === roundId &&
         String(row.status || "").trim().toLowerCase() === "active"
       )
       .sort((a, b) => Number(a.team_number || 0) - Number(b.team_number || 0));
 
     const playerAssignmentRows = dataRows.filter((row) =>
-      String(row.record_type || "").trim() === "round_player" &&
-      String(row.round_id || "").trim() === String(roundId || "").trim() &&
+      (String(row.record_type || "").trim() === "round_player" || String(row.record_type || "").trim() === "player") &&
+      String(row.round_id || "").trim() === roundId &&
       String(row.status || "").trim().toLowerCase() === "active"
     );
 
@@ -109,7 +128,7 @@ export default async function handler(req, res) {
 
     const scoreRows = dataRows.filter((row) =>
       ["team_score", "individual_score"].includes(String(row.record_type || "").trim()) &&
-      String(row.round_id || "").trim() === String(roundId || "").trim() &&
+      String(row.round_id || "").trim() === roundId &&
       String(row.status || "").trim().toLowerCase() === "active"
     );
 
@@ -139,7 +158,6 @@ export default async function handler(req, res) {
       };
     });
 
-    // ⭐ DATE TRANSLATOR FIX
     let displayDate = round.round_date || "";
     if (!isNaN(displayDate) && Number(displayDate) > 40000) {
       const jsDate = new Date(Math.round((Number(displayDate) - 25569) * 86400 * 1000));
@@ -150,7 +168,7 @@ export default async function handler(req, res) {
       tournamentId,
       roundId,
       roundNumber: round.round_number || "",
-      roundDate: displayDate, // ⭐ Sending the translated date!
+      roundDate: displayDate, 
       courseName: round.course_name || "",
       scoringMode: round.scoring_mode || "",
       loggedInPlayerId,
