@@ -56,14 +56,12 @@ export default async function handler(req, res) {
     // 2. Look at the DATA tab
     const dataRows = await getRows(TAB_NAMES.DATA);
     
-    // Filter down to only rows that are actually marked "active"
     const activeDataRows = dataRows.filter(row => String(row.status || "").toLowerCase().trim() === "active");
 
     if (activeDataRows.length === 0) {
-      return res.status(404).json({ error: "X-RAY VISION: There are no rows in the Data tab with an 'active' status." });
+      return res.status(404).json({ error: "There are no rows in the Data tab with an 'active' status." });
     }
 
-    // Try to find the specific player in those active rows using ID *OR* First Name
     const activePlayerRow = activeDataRows.find((row) => {
       const rowPlayerId = String(row.player_id || row.playerId || "").trim();
       const rowPlayerName = String(row.player_name || "").toLowerCase().trim();
@@ -72,26 +70,18 @@ export default async function handler(req, res) {
     });
 
     if (!activePlayerRow) {
-      // 🚨 THE X-RAY ERROR MESSAGE: Spits out exactly who is in the active round 🚨
-      const availablePlayers = activeDataRows
-        .filter(r => r.player_name || (r.record_type && r.record_type.includes("player")))
-        .map(r => `${r.player_name} (ID: ${r.player_id})`)
-        .join(" | ");
-        
       return res.status(404).json({ 
-        error: `X-RAY VISION: Found you as ID [${playerId}] in Players tab. But the Data tab only has these active players: ${availablePlayers || "None found with player_names"}.` 
+        error: "You were found, but you are not associated with the active round."
       });
     }
 
-    // 3. Generate Token using the exact data from the DATA tab to ensure a flawless link
+    // ⭐ THE FIX: Read the exact token directly from your database's 'token' column!
+    const dbToken = String(activePlayerRow.token || "").trim();
+    
+    // (Fallback to the manufactured one just in case the column is somehow blank)
     const finalRoundId = String(activePlayerRow.round_id || "").trim();
     const finalPlayerId = String(activePlayerRow.player_id || "").trim();
-
-    if (!finalRoundId) {
-      return res.status(500).json({ error: "Found you in the active round, but the round_id is blank in the data tab." });
-    }
-
-    const token = `player-${finalPlayerId}-${finalRoundId}`;
+    const token = dbToken ? dbToken : `player-${finalPlayerId}-${finalRoundId}`;
 
     return res.status(200).json({ token });
     
