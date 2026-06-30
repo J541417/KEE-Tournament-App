@@ -1,15 +1,33 @@
 import { getRows, TAB_NAMES } from "../lib/googleSheets.js";
 
 export default async function handler(req, res) {
-  // ⭐ UPGRADE: Now accepts POST requests from your frontend form
   if (req.method !== "POST" && req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed." });
   }
 
   try {
-    // ⭐ UPGRADE: Intelligently grabs the name whether sent as a GET or POST
-    const name = req.body?.name || req.query?.name;
-    
+    let name = "";
+
+    // ⭐ THE ULTIMATE NAME CATCHER
+    if (req.method === "POST") {
+      let body = req.body;
+      
+      // Safety check in case Vercel receives raw text instead of JSON
+      if (typeof body === "string") {
+        try { body = JSON.parse(body); } catch (e) {}
+      }
+      
+      // Check every common label the frontend might be using
+      name = body?.name || body?.playerName || body?.player || body?.searchName || body?.golfer;
+      
+      // Bulletproof fallback: If we still don't have it, grab the first piece of text in the package
+      if (!name && typeof body === "object" && body !== null) {
+        name = Object.values(body).find(val => typeof val === "string");
+      }
+    } else {
+      name = req.query?.name || req.query?.playerName;
+    }
+
     if (!name) {
       return res.status(400).json({ error: "Name is required." });
     }
