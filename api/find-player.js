@@ -1,162 +1,79 @@
-import { appendDataRows, getDataRows, getRows, TAB_NAMES } from "../lib/googleSheets.js";
-import {
-  isAdminValue,
-  makeToken,
-  normalizePhone
-} from "../lib/playerUtils.js";
-
-// ⭐ NEW SEARCH ENGINE: Smartly handles First, Last, or Full Names
-function isNameMatch(dbName, searchInput) {
-  const name = String(dbName || "").toLowerCase().trim();
-  const search = String(searchInput || "").toLowerCase().trim();
-
-  if (!name || !search) return false;
-
-  // Split whatever they typed into separate words
-  const searchWords = search.split(/\s+/);
-
-  // Return true ONLY if every word they typed exists in their database name
-  return searchWords.every((word) => name.includes(word));
-}
+import { getRows, TAB_NAMES } from "../lib/googleSheets.js";
 
 export default async function handler(req, res) {
-  if (req.method !== "POST" && req.method !== "GET") {
-    return res.status(405).json({
-      error: `Method not allowed: ${req.method}`
-    });
+  if (req.method !== "GET") {
+    return res.status(405).json({ error: "Method not allowed." });
   }
 
   try {
-    const searchValue =
-      req.method === "GET"
-        ? req.query.search || req.query.lastName
-        : req.body?.search || req.body?.lastName;
-
-    if (!searchValue || !String(searchValue).trim()) {
-      return res.status(400).json({
-        error: "Name is required."
-      });
+    const { name } = req.query;
+    if (!name) {
+      return res.status(400).json({ error: "Name is required." });
     }
 
-    const [dataRows, playerRows] = await Promise.all([
-      getDataRows(),
-      getRows(TAB_NAMES.PLAYERS)
-    ]);
+    const searchInput = String(name).toLowerCase().trim();
+    const players = await getRows(TAB_NAMES.PLAYERS);
 
-    const activeRound = dataRows.find((row) =>
-      String(row.record_type || "").trim() === "round" &&
-      String(row.status || "").trim().toLowerCase() === "active"
+    let matchedPlayer = null;
+
+    // 1. Smart Search: Look for First, Last, or Full Name matches
+    for (const player of players) {
+      const firstName = String(player.First || "").toLowerCase().trim();
+      const lastName = String(player.Last || "").toLowerCase().trim();
+      const fullName = `${firstName} ${lastName}`;
+
+      if (
+        firstName === searchInput ||
+        lastName === searchInput ||
+        fullName === searchInput
+      ) {
+        matchedPlayer = player;
+        break;
+      }
+    }
+
+    if (!matchedPlayer) {
+      return res.status(404).json({ error: "No player was found for that name." });
+    }
+
+    // 2. Grab the player's unique ID (their Phone Number)
+    const playerId = String(matchedPlayer["Phone Number"] || "").trim();
+    
+    if (!playerId) {
+      return res.status(404).json({ error: "Player found, but they do not have a Phone Number assigned in the database." });
+    }
+
+    // 3. Find the active round
+    const dataRows = await getRows(TAB_NAMES.DATA);
+    
+    const activeRound = dataRows.find(
+      (row) => String(row.type).toLowerCase() === "round" && 
+               String(row.status).toLowerCase() === "active"
     );
 
-    const allMatchingPlayers = playerRows
-      .map((row) => ({
-        playerId: normalizePhone(row["Phone Number"]),
-        playerName: String(row.Golfer || "").trim(),
-        playerRating: String(row.Rating || "").trim(),
-        isAdmin: isAdminValue(row.Admin)
-      }))
-      .filter((player) =>
-        player.playerId &&
-        player.playerName &&
-        isNameMatch(player.playerName, searchValue) // ⭐ Hooked up new engine here
-      );
-
-    if (allMatchingPlayers.length === 0) {
-      return res.status(200).json({
-        status: "no_match",
-        players: []
-      });
+    if (!activeRound) {
+      return res.status(404).json({ error: "No active round found." });
     }
 
-    const playersWithRoundInfo = await Promise.all(
-      allMatchingPlayers.map(async (player) => {
-        const roundPlayer = activeRound
-          ? dataRows.find((row) =>
-              String(row.record_type || "").trim() === "round_player" &&
-              String(row.round_id || "").trim() === String(activeRound.round_id || "").trim() &&
-              String(row.player_id || "").trim() === String(player.playerId || "").trim() &&
-              String(row.status || "").trim().toLowerCase() === "active"
-            )
-          : null;
+    const roundId = activeRound.id;
 
-        let token = "";
-
-        if (activeRound && roundPlayer) {
-          token = await getOrCreateToken({
-            rows: dataRows,
-            tournamentId: activeRound.tournament_id,
-            roundId: activeRound.round_id,
-            player: roundPlayer
-          });
-        }
-
-        return {
-          playerId: player.playerId,
-          playerName: player.playerName,
-          playerRating: player.playerRating,
-          isAdmin: player.isAdmin,
-          teamId: roundPlayer?.team_id || "",
-          teamNumber: roundPlayer?.team_number || "",
-          token
-        };
-      })
+    // 4. Verify the player is actually in this active round
+    const playerInRound = dataRows.find(
+      (row) => String(row.type).toLowerCase() === "player" &&
+               String(row.roundId) === String(roundId) &&
+               String(row.playerId) === playerId
     );
 
-    if (playersWithRoundInfo.length === 1) {
-      return res.status(200).json({
-        status: "single_match",
-        player: playersWithRoundInfo[0]
-      });
+    if (!playerInRound) {
+      return res.status(404).json({ error: "You were found, but you are not associated with the active round." });
     }
 
-    return res.status(200).json({
-      status: "multiple_matches",
-      players: playersWithRoundInfo
-    });
+    // 5. Success! Generate the login token
+    const token = `player-${playerId}-${roundId}`;
+
+    return res.status(200).json({ token });
+    
   } catch (error) {
-    return res.status(500).json({
-      error: error.message || "Unable to find player."
-    });
+    return res.status(500).json({ error: error.message || "An error occurred." });
   }
-}
-
-async function getOrCreateToken({ rows, tournamentId, roundId, player }) {
-  const existing = rows.find((row) =>
-    String(row.record_type || "").trim() === "scorecard_token" &&
-    String(row.round_id || "").trim() === String(roundId || "").trim() &&
-    String(row.player_id || "").trim() === String(player.player_id || "").trim() &&
-    String(row.status || "").trim().toLowerCase() === "active"
-  );
-
-  if (existing?.token) {
-    return existing.token;
-  }
-
-  const token = makeToken();
-  const updatedAt = new Date().toISOString();
-
-  await appendDataRows([
-    [
-      "scorecard_token",
-      tournamentId || "",
-      roundId || "",
-      "",
-      player.team_id || "",
-      player.team_number || "",
-      player.player_id || "",
-      player.player_name || "",
-      player.player_rating || "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      token,
-      "active",
-      updatedAt,
-      "Created from user landing page"
-    ]
-  ]);
-
-  return token;
 }
