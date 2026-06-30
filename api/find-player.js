@@ -8,19 +8,15 @@ export default async function handler(req, res) {
   try {
     let name = "";
 
-    // ⭐ THE ULTIMATE NAME CATCHER
     if (req.method === "POST") {
       let body = req.body;
       
-      // Safety check in case Vercel receives raw text instead of JSON
       if (typeof body === "string") {
         try { body = JSON.parse(body); } catch (e) {}
       }
       
-      // Check every common label the frontend might be using
       name = body?.name || body?.playerName || body?.player || body?.searchName || body?.golfer;
       
-      // Bulletproof fallback: If we still don't have it, grab the first piece of text in the package
       if (!name && typeof body === "object" && body !== null) {
         name = Object.values(body).find(val => typeof val === "string");
       }
@@ -57,11 +53,12 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: "No player was found for that name." });
     }
 
-    // 2. Grab the player's unique ID (their Phone Number)
-    const playerId = String(matchedPlayer["Phone Number"] || "").trim();
+    // ⭐ THE FIX: Dynamically grabs the ID using "Cell", with fallbacks just in case
+    const rawCell = matchedPlayer["Cell"] || matchedPlayer["Phone Number"] || matchedPlayer["Phone"] || matchedPlayer["Cell Phone"];
+    const playerId = String(rawCell || "").trim();
     
     if (!playerId) {
-      return res.status(404).json({ error: "Player found, but they do not have a Phone Number assigned in the database." });
+      return res.status(404).json({ error: "Player found, but they do not have a Cell number assigned in the database." });
     }
 
     // 3. Find the active round
