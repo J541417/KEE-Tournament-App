@@ -52,16 +52,15 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: "No player was found for that name." });
     }
 
-    const rawCell = matchedPlayer["Cell"] || matchedPlayer["Phone Number"] || matchedPlayer["Phone"] || matchedPlayer["Cell Phone"];
-    const playerId = String(rawCell || "").trim();
+    // ⭐ THE REAL FIX: Grab the actual Player ID (1, 2, 3...) instead of the phone number
+    const playerId = String(matchedPlayer["Player ID"] || matchedPlayer["ID"] || matchedPlayer["PlayerId"] || "").trim();
     
     if (!playerId) {
-      return res.status(404).json({ error: "Player found, but they do not have a Cell number assigned in the database." });
+      return res.status(404).json({ error: "Player found, but they do not have a Player ID assigned in the database." });
     }
 
     const dataRows = await getRows(TAB_NAMES.DATA);
     
-    // ⭐ THE FIX: Looking at 'record_type' instead of 'type', and checking for 'round' or 'round_info'
     const activeRound = dataRows.find((row) => {
       const recType = String(row.record_type || row.type || "").toLowerCase().trim();
       const status = String(row.status || "").toLowerCase().trim();
@@ -72,10 +71,8 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: "No active round found." });
     }
 
-    // Checking for both id variations just in case
     const roundId = activeRound.id || activeRound.round_id;
 
-    // ⭐ THE FIX: Looking for 'round_player' in 'record_type'
     const playerInRound = dataRows.find((row) => {
       const recType = String(row.record_type || row.type || "").toLowerCase().trim();
       const rowRoundId = String(row.roundId || row.round_id || "").trim();
@@ -83,7 +80,7 @@ export default async function handler(req, res) {
       
       return (recType === "player" || recType === "round_player") &&
              rowRoundId === String(roundId).trim() &&
-             rowPlayerId === playerId;
+             rowPlayerId === playerId; // Now comparing ID "1" to ID "1"
     });
 
     if (!playerInRound) {
