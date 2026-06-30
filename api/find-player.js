@@ -52,7 +52,6 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: "No player was found for that name." });
     }
 
-    // ⭐ THE REAL FIX: Grab the actual Player ID (1, 2, 3...) instead of the phone number
     const playerId = String(matchedPlayer["Player ID"] || matchedPlayer["ID"] || matchedPlayer["PlayerId"] || "").trim();
     
     if (!playerId) {
@@ -71,16 +70,25 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: "No active round found." });
     }
 
-    const roundId = activeRound.id || activeRound.round_id;
+    const roundId = String(activeRound.id || activeRound.round_id || "").trim();
 
+    // ⭐ THE OMNI-SEARCH FIX
     const playerInRound = dataRows.find((row) => {
       const recType = String(row.record_type || row.type || "").toLowerCase().trim();
-      const rowRoundId = String(row.roundId || row.round_id || "").trim();
-      const rowPlayerId = String(row.playerId || row.player_id || "").trim();
       
-      return (recType === "player" || recType === "round_player") &&
-             rowRoundId === String(roundId).trim() &&
-             rowPlayerId === playerId; // Now comparing ID "1" to ID "1"
+      // Make sure this is actually a player row
+      if (recType !== "player" && recType !== "round_player" && recType !== "team_player") {
+        return false;
+      }
+
+      // Grab every single value in this row, no matter what the column header is
+      const allRowValues = Object.values(row).map(val => String(val).trim());
+      
+      // If the Round ID and Player ID both exist anywhere in this row, it's a match!
+      const hasRoundId = allRowValues.includes(roundId);
+      const hasPlayerId = allRowValues.includes(playerId);
+      
+      return hasRoundId && hasPlayerId;
     });
 
     if (!playerInRound) {
