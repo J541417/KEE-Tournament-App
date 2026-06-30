@@ -33,7 +33,6 @@ export default async function handler(req, res) {
 
     let matchedPlayer = null;
 
-    // 1. Smart Search: Look for First, Last, or Full Name matches
     for (const player of players) {
       const firstName = String(player.First || "").toLowerCase().trim();
       const lastName = String(player.Last || "").toLowerCase().trim();
@@ -53,7 +52,6 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: "No player was found for that name." });
     }
 
-    // ⭐ THE FIX: Dynamically grabs the ID using "Cell", with fallbacks just in case
     const rawCell = matchedPlayer["Cell"] || matchedPlayer["Phone Number"] || matchedPlayer["Phone"] || matchedPlayer["Cell Phone"];
     const playerId = String(rawCell || "").trim();
     
@@ -61,12 +59,12 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: "Player found, but they do not have a Cell number assigned in the database." });
     }
 
-    // 3. Find the active round
     const dataRows = await getRows(TAB_NAMES.DATA);
     
+    // ⭐ THE FIX: Added .trim() to ignore invisible spaces in your spreadsheet
     const activeRound = dataRows.find(
-      (row) => String(row.type).toLowerCase() === "round" && 
-               String(row.status).toLowerCase() === "active"
+      (row) => String(row.type).toLowerCase().trim() === "round" && 
+               String(row.status).toLowerCase().trim() === "active"
     );
 
     if (!activeRound) {
@@ -75,18 +73,17 @@ export default async function handler(req, res) {
 
     const roundId = activeRound.id;
 
-    // 4. Verify the player is actually in this active round
+    // Added .trim() here as well for safety
     const playerInRound = dataRows.find(
-      (row) => String(row.type).toLowerCase() === "player" &&
-               String(row.roundId) === String(roundId) &&
-               String(row.playerId) === playerId
+      (row) => String(row.type).toLowerCase().trim() === "player" &&
+               String(row.roundId).trim() === String(roundId).trim() &&
+               String(row.playerId).trim() === playerId
     );
 
     if (!playerInRound) {
       return res.status(404).json({ error: "You were found, but you are not associated with the active round." });
     }
 
-    // 5. Success! Generate the login token
     const token = `player-${playerId}-${roundId}`;
 
     return res.status(200).json({ token });
