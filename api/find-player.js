@@ -10,13 +10,10 @@ export default async function handler(req, res) {
 
     if (req.method === "POST") {
       let body = req.body;
-      
       if (typeof body === "string") {
         try { body = JSON.parse(body); } catch (e) {}
       }
-      
       name = body?.name || body?.playerName || body?.player || body?.searchName || body?.golfer;
-      
       if (!name && typeof body === "object" && body !== null) {
         name = Object.values(body).find(val => typeof val === "string");
       }
@@ -33,57 +30,68 @@ export default async function handler(req, res) {
     // 1. Check the PLAYERS tab
     const players = await getRows(TAB_NAMES.PLAYERS);
     let matchedPlayer = null;
+    let firstName = "";
 
     for (const player of players) {
-      const firstName = String(player.First || "").toLowerCase().trim();
+      firstName = String(player.First || "").toLowerCase().trim();
       const lastName = String(player.Last || "").toLowerCase().trim();
       const fullName = `${firstName} ${lastName}`;
 
-      if (
-        firstName === searchInput ||
-        lastName === searchInput ||
-        fullName === searchInput
-      ) {
+      if (firstName === searchInput || lastName === searchInput || fullName === searchInput) {
         matchedPlayer = player;
         break;
       }
     }
 
     if (!matchedPlayer) {
-      return res.status(404).json({ error: "No player was found for that name." });
+      return res.status(404).json({ error: "No player was found for that name in the Players tab." });
     }
 
-    // Grab their ID from the PLAYERS tab
     const playerId = String(matchedPlayer["Player ID"] || matchedPlayer["ID"] || matchedPlayer["PlayerId"] || "").trim();
     
     if (!playerId) {
       return res.status(404).json({ error: "Player found, but they do not have a Player ID assigned." });
     }
 
-    // 2. Check the DATA tab directly using the exact headers you provided
+    // 2. Look at the DATA tab
     const dataRows = await getRows(TAB_NAMES.DATA);
     
-    // We look for a row where player_id matches AND status is active
-    const activePlayerRow = dataRows.find((row) => {
-      const rowStatus = String(row.status || "").toLowerCase().trim();
+    // Filter down to only rows that are actually marked "active"
+    const activeDataRows = dataRows.filter(row => String(row.status || "").toLowerCase().trim() === "active");
+
+    if (activeDataRows.length === 0) {
+      return res.status(404).json({ error: "X-RAY VISION: There are no rows in the Data tab with an 'active' status." });
+    }
+
+    // Try to find the specific player in those active rows using ID *OR* First Name
+    const activePlayerRow = activeDataRows.find((row) => {
       const rowPlayerId = String(row.player_id || row.playerId || "").trim();
+      const rowPlayerName = String(row.player_name || "").toLowerCase().trim();
       
-      return rowStatus === "active" && rowPlayerId === playerId;
+      return rowPlayerId === playerId || rowPlayerName.includes(firstName);
     });
 
     if (!activePlayerRow) {
-      return res.status(404).json({ error: "You were found, but you are not associated with the active round." });
+      // 🚨 THE X-RAY ERROR MESSAGE: Spits out exactly who is in the active round 🚨
+      const availablePlayers = activeDataRows
+        .filter(r => r.player_name || (r.record_type && r.record_type.includes("player")))
+        .map(r => `${r.player_name} (ID: ${r.player_id})`)
+        .join(" | ");
+        
+      return res.status(404).json({ 
+        error: `X-RAY VISION: Found you as ID [${playerId}] in Players tab. But the Data tab only has these active players: ${availablePlayers || "None found with player_names"}.` 
+      });
     }
 
-    // Grab the exact round_id from that row
-    const roundId = String(activePlayerRow.round_id || "").trim();
+    // 3. Generate Token using the exact data from the DATA tab to ensure a flawless link
+    const finalRoundId = String(activePlayerRow.round_id || "").trim();
+    const finalPlayerId = String(activePlayerRow.player_id || "").trim();
 
-    if (!roundId) {
-      return res.status(500).json({ error: "Found you in the active round, but the round_id is missing." });
+    if (!finalRoundId) {
+      return res.status(500).json({ error: "Found you in the active round, but the round_id is blank in the data tab." });
     }
 
-    // 3. Generate Token!
-    const token = `player-${playerId}-${roundId}`;
+    const token = `player-${finalPlayerId}-${finalRoundId}`;
 
     return res.status(200).json({ token });
     
