@@ -61,24 +61,30 @@ export default async function handler(req, res) {
 
     const dataRows = await getRows(TAB_NAMES.DATA);
     
-    // ⭐ THE FIX: Added .trim() to ignore invisible spaces in your spreadsheet
-    const activeRound = dataRows.find(
-      (row) => String(row.type).toLowerCase().trim() === "round" && 
-               String(row.status).toLowerCase().trim() === "active"
-    );
+    // ⭐ THE FIX: Looking at 'record_type' instead of 'type', and checking for 'round' or 'round_info'
+    const activeRound = dataRows.find((row) => {
+      const recType = String(row.record_type || row.type || "").toLowerCase().trim();
+      const status = String(row.status || "").toLowerCase().trim();
+      return (recType === "round" || recType === "round_info") && status === "active";
+    });
 
     if (!activeRound) {
       return res.status(404).json({ error: "No active round found." });
     }
 
-    const roundId = activeRound.id;
+    // Checking for both id variations just in case
+    const roundId = activeRound.id || activeRound.round_id;
 
-    // Added .trim() here as well for safety
-    const playerInRound = dataRows.find(
-      (row) => String(row.type).toLowerCase().trim() === "player" &&
-               String(row.roundId).trim() === String(roundId).trim() &&
-               String(row.playerId).trim() === playerId
-    );
+    // ⭐ THE FIX: Looking for 'round_player' in 'record_type'
+    const playerInRound = dataRows.find((row) => {
+      const recType = String(row.record_type || row.type || "").toLowerCase().trim();
+      const rowRoundId = String(row.roundId || row.round_id || "").trim();
+      const rowPlayerId = String(row.playerId || row.player_id || "").trim();
+      
+      return (recType === "player" || recType === "round_player") &&
+             rowRoundId === String(roundId).trim() &&
+             rowPlayerId === playerId;
+    });
 
     if (!playerInRound) {
       return res.status(404).json({ error: "You were found, but you are not associated with the active round." });
