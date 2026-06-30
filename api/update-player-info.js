@@ -12,7 +12,6 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "First and Last name are required." });
     }
 
-    // 1. Fetch current players to find the exact row number
     const playerRows = await getRows(TAB_NAMES.PLAYERS);
     
     let rowIndex = -1;
@@ -21,7 +20,8 @@ export default async function handler(req, res) {
       const dbLastName = String(playerRows[i].Last || "").toLowerCase().trim();
       
       if (dbFirstName === firstName.toLowerCase() && dbLastName === lastName.toLowerCase()) {
-        rowIndex = i + 2; 
+        // ⭐ UPGRADE: Uses the exact row number assigned by your Google Sheets lib
+        rowIndex = playerRows[i]._rowNumber; 
         break;
       }
     }
@@ -31,9 +31,8 @@ export default async function handler(req, res) {
     }
 
     const golferFullName = `${firstName} ${lastName}`;
-    const dateUpdated = new Date().toLocaleDateString(); // ⭐ Fills your new Column N
+    const dateUpdated = new Date().toLocaleDateString(); 
 
-    // 2. Prepare the exact data payload for Google Sheets
     const updateData = [
       {
         range: `${TAB_NAMES.PLAYERS}!B${rowIndex}:D${rowIndex}`,
@@ -49,7 +48,6 @@ export default async function handler(req, res) {
       }
     ];
 
-    // 3. Write directly to the database
     await batchUpdateValues(updateData);
 
     return res.status(200).json({ 
