@@ -1,12 +1,15 @@
 import { getRows, TAB_NAMES } from "../lib/googleSheets.js";
 
 export default async function handler(req, res) {
-  if (req.method !== "GET") {
+  // ⭐ UPGRADE: Now accepts POST requests from your frontend form
+  if (req.method !== "POST" && req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed." });
   }
 
   try {
-    const { name } = req.query;
+    // ⭐ UPGRADE: Intelligently grabs the name whether sent as a GET or POST
+    const name = req.body?.name || req.query?.name;
+    
     if (!name) {
       return res.status(400).json({ error: "Name is required." });
     }
