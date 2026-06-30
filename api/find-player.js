@@ -29,8 +29,9 @@ export default async function handler(req, res) {
     }
 
     const searchInput = String(name).toLowerCase().trim();
+    
+    // 1. Check the PLAYERS tab
     const players = await getRows(TAB_NAMES.PLAYERS);
-
     let matchedPlayer = null;
 
     for (const player of players) {
@@ -52,49 +53,36 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: "No player was found for that name." });
     }
 
+    // Grab their ID from the PLAYERS tab
     const playerId = String(matchedPlayer["Player ID"] || matchedPlayer["ID"] || matchedPlayer["PlayerId"] || "").trim();
     
     if (!playerId) {
-      return res.status(404).json({ error: "Player found, but they do not have a Player ID assigned in the database." });
+      return res.status(404).json({ error: "Player found, but they do not have a Player ID assigned." });
     }
 
+    // 2. Check the DATA tab directly using the exact headers you provided
     const dataRows = await getRows(TAB_NAMES.DATA);
     
-    const activeRound = dataRows.find((row) => {
-      const recType = String(row.record_type || row.type || "").toLowerCase().trim();
-      const status = String(row.status || "").toLowerCase().trim();
-      return (recType === "round" || recType === "round_info") && status === "active";
+    // We look for a row where player_id matches AND status is active
+    const activePlayerRow = dataRows.find((row) => {
+      const rowStatus = String(row.status || "").toLowerCase().trim();
+      const rowPlayerId = String(row.player_id || row.playerId || "").trim();
+      
+      return rowStatus === "active" && rowPlayerId === playerId;
     });
 
-    if (!activeRound) {
-      return res.status(404).json({ error: "No active round found." });
-    }
-
-    const roundId = String(activeRound.id || activeRound.round_id || "").trim();
-
-    // ⭐ THE OMNI-SEARCH FIX
-    const playerInRound = dataRows.find((row) => {
-      const recType = String(row.record_type || row.type || "").toLowerCase().trim();
-      
-      // Make sure this is actually a player row
-      if (recType !== "player" && recType !== "round_player" && recType !== "team_player") {
-        return false;
-      }
-
-      // Grab every single value in this row, no matter what the column header is
-      const allRowValues = Object.values(row).map(val => String(val).trim());
-      
-      // If the Round ID and Player ID both exist anywhere in this row, it's a match!
-      const hasRoundId = allRowValues.includes(roundId);
-      const hasPlayerId = allRowValues.includes(playerId);
-      
-      return hasRoundId && hasPlayerId;
-    });
-
-    if (!playerInRound) {
+    if (!activePlayerRow) {
       return res.status(404).json({ error: "You were found, but you are not associated with the active round." });
     }
 
+    // Grab the exact round_id from that row
+    const roundId = String(activePlayerRow.round_id || "").trim();
+
+    if (!roundId) {
+      return res.status(500).json({ error: "Found you in the active round, but the round_id is missing." });
+    }
+
+    // 3. Generate Token!
     const token = `player-${playerId}-${roundId}`;
 
     return res.status(200).json({ token });
