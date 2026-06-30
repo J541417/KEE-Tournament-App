@@ -67,10 +67,9 @@ async function handleLookupSubmit(event) {
   clearMatches();
   clearAdminOptions();
 
-  const search = elements.playerSearch.value.trim();
+  const searchInput = elements.playerSearch.value.trim();
 
-  if (!search) {
-    // ⭐ UPDATED TEXT: Now prompts for first and/or last name
+  if (!searchInput) {
     showMessage("Please enter your first and/or last name.");
     return;
   }
@@ -85,7 +84,8 @@ async function handleLookupSubmit(event) {
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ search })
+      // ⭐ THE FIX: Sending the search input clearly labeled as 'name'
+      body: JSON.stringify({ name: searchInput }) 
     });
 
     const data = await response.json();
@@ -94,16 +94,21 @@ async function handleLookupSubmit(event) {
       throw new Error(data.error || "Unable to find player.");
     }
 
+    // ⭐ THE FIX: If the backend gives us a token directly, immediately go to the scorecard!
+    if (data.token) {
+      goToScorecard(data.token);
+      return;
+    }
+
+    // (Legacy fallbacks just in case)
     if (data.status === "no_match") {
       showMessage("No player was found for that name.");
       return;
     }
-
     if (data.status === "single_match") {
       handleResolvedPlayer(data.player);
       return;
     }
-
     if (data.status === "multiple_matches") {
       renderMatches(data.players);
       return;
