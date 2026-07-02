@@ -18,23 +18,35 @@ export default async function handler(req, res) {
 
     const players = rows
       .map((row) => {
-        const name = String(row.Golfer || "").trim();
-        const phone = normalizePhone(row["Phone Number"]);
+        // ⭐ THE FIX: Grab names from First/Last if Golfer column is empty
+        const firstName = String(row.First || "").trim();
+        const lastName = String(row.Last || "").trim();
+        const fallbackName = `${firstName} ${lastName}`.trim();
+        const name = String(row.Golfer || fallbackName).trim();
+        
+        // ⭐ THE FIX: Use the actual Player ID column!
+        const rawPlayerId = String(row["Player ID"] || row["ID"] || row["PlayerId"] || "").trim();
+        
+        // (We can still load the phone number for display if it exists, but not as an ID)
+        const rawPhone = String(row.Cell || row["Phone Number"] || row.Phone || "").trim();
+        const phone = rawPhone ? normalizePhone(rawPhone) : "";
+        
         const rating = String(row.Rating || "").trim();
         const email = String(row.Email || "").trim();
         const isAdmin = isAdminValue(row.Admin);
 
         return {
-          playerId: phone,
+          playerId: rawPlayerId,
           playerName: name,
-          firstName: getFirstName(name),
-          lastName: getLastName(name),
+          firstName: firstName || getFirstName(name),
+          lastName: lastName || getLastName(name),
           rating,
           phone,
           email,
           isAdmin
         };
       })
+      // ⭐ THE FIX: Now this will successfully keep everyone who has a real Player ID!
       .filter((player) => player.playerName && player.playerId)
       .sort((a, b) => a.playerName.localeCompare(b.playerName));
 
