@@ -19,51 +19,54 @@ export default async function handler(req, res) {
     } = req.body || {};
 
     if (!token) {
-      return res.status(400).json({
-        error: "Scorecard token is required."
-      });
+      return res.status(400).json({ error: "Scorecard token is required." });
     }
 
     if (!roundId) {
-      return res.status(400).json({
-        error: "Round ID is required."
-      });
+      return res.status(400).json({ error: "Round ID is required." });
     }
 
     if (!holeNumber) {
-      return res.status(400).json({
-        error: "Hole number is required."
-      });
+      return res.status(400).json({ error: "Hole number is required." });
     }
 
     if (score === undefined || score === null || String(score).trim() === "") {
-      return res.status(400).json({
-        error: "Score is required."
-      });
+      return res.status(400).json({ error: "Score is required." });
     }
 
     const numericScore = Number(score);
 
     if (!Number.isInteger(numericScore) || numericScore < 1 || numericScore > 20) {
-      return res.status(400).json({
-        error: "Score must be a whole number between 1 and 20."
-      });
+      return res.status(400).json({ error: "Score must be a whole number between 1 and 20." });
     }
 
     if (!["team", "individual"].includes(scoringMode)) {
-      return res.status(400).json({
-        error: "Scoring mode must be team or individual."
-      });
+      return res.status(400).json({ error: "Scoring mode must be team or individual." });
     }
 
     const rows = await getDataRows();
 
-    const tokenRow = rows.find((row) =>
-      String(row.record_type || "").trim() === "scorecard_token" &&
+    // ⭐ THE FIX: Removed the strict "scorecard_token" filter! 
+    // Now it finds the token on ANY row as long as it matches and is active.
+    let tokenRow = rows.find((row) =>
       String(row.token || "").trim() === String(token || "").trim() &&
-      String(row.round_id || "").trim() === String(roundId || "").trim() &&
+      String(row.round_id || row.roundId || "").trim() === String(roundId || "").trim() &&
       String(row.status || "").trim().toLowerCase() === "active"
     );
+
+    // ⭐ SAFETY NET: If the sheet's token column is blank but they have a valid manufactured key
+    if (!tokenRow && String(token).startsWith("player-")) {
+      const parts = String(token).split("-");
+      if (parts.length >= 3) {
+        const pId = parts[1];
+        tokenRow = rows.find((row) => 
+          (String(row.record_type || "").trim() === "round_player" || String(row.record_type || "").trim() === "player") &&
+          String(row.player_id || row.playerId || "").trim() === pId &&
+          String(row.round_id || row.roundId || "").trim() === String(roundId).trim() &&
+          String(row.status || "").trim().toLowerCase() === "active"
+        );
+      }
+    }
 
     if (!tokenRow) {
       return res.status(403).json({
@@ -73,30 +76,23 @@ export default async function handler(req, res) {
 
     const now = new Date().toISOString();
 
-    // ⭐ THE VIP PASS: Check if the person saving the score is using the master Admin token
-    const isAdminToken = String(tokenRow.player_id || "").trim().toLowerCase() === "admin";
+    const isAdminToken = String(tokenRow.player_id || tokenRow.playerId || "").trim().toLowerCase() === "admin";
 
     if (scoringMode === "team") {
       if (!teamId) {
-        return res.status(400).json({
-          error: "Team ID is required for team scoring."
-        });
+        return res.status(400).json({ error: "Team ID is required for team scoring." });
       }
 
-      // ⭐ OVERRIDE: Allow if it is their team OR if they are the admin
       const authorizedForTeam = isAdminToken || String(tokenRow.team_id || "").trim() === String(teamId || "").trim();
 
       if (!authorizedForTeam) {
-        return res.status(403).json({
-          error: "You are not authorized to score for this team."
-        });
+        return res.status(403).json({ error: "You are not authorized to score for this team." });
       }
 
-      // If Admin is saving, fetch the actual team's details so the Google Sheet stays accurate
       const targetTeamRow = rows.find(row => 
         String(row.record_type || "").trim() === "team" && 
         String(row.team_id || "").trim() === String(teamId).trim() &&
-        String(row.round_id || "").trim() === String(roundId).trim()
+        String(row.round_id || row.roundId || "").trim() === String(roundId).trim()
       ) || tokenRow;
 
       await appendDataRows([
@@ -122,32 +118,24 @@ export default async function handler(req, res) {
         ]
       ]);
 
-      return res.status(200).json({
-        success: true
-      });
+      return res.status(200).json({ success: true });
     }
 
     if (scoringMode === "individual") {
       if (!playerId) {
-        return res.status(400).json({
-          error: "Player ID is required for individual scoring."
-        });
+        return res.status(400).json({ error: "Player ID is required for individual scoring." });
       }
 
-      // ⭐ OVERRIDE: Allow if it is their score OR if they are the admin
-      const authorizedForPlayer = isAdminToken || String(tokenRow.player_id || "").trim() === String(playerId || "").trim();
+      const authorizedForPlayer = isAdminToken || String(tokenRow.player_id || tokenRow.playerId || "").trim() === String(playerId || "").trim();
 
       if (!authorizedForPlayer) {
-        return res.status(403).json({
-          error: "You are not authorized to score for this player."
-        });
+        return res.status(403).json({ error: "You are not authorized to score for this player." });
       }
 
-      // If Admin is saving, fetch the actual player's details so the Google Sheet stays accurate
       const targetPlayerRow = rows.find(row => 
-        String(row.record_type || "").trim() === "round_player" && 
-        String(row.player_id || "").trim() === String(playerId).trim() &&
-        String(row.round_id || "").trim() === String(roundId).trim()
+        (String(row.record_type || "").trim() === "round_player" || String(row.record_type || "").trim() === "player") && 
+        String(row.player_id || row.playerId || "").trim() === String(playerId).trim() &&
+        String(row.round_id || row.roundId || "").trim() === String(roundId).trim()
       ) || tokenRow;
 
       await appendDataRows([
@@ -173,17 +161,11 @@ export default async function handler(req, res) {
         ]
       ]);
 
-      return res.status(200).json({
-        success: true
-      });
+      return res.status(200).json({ success: true });
     }
 
-    return res.status(400).json({
-      error: "Unsupported scoring mode."
-    });
+    return res.status(400).json({ error: "Unsupported scoring mode." });
   } catch (error) {
-    return res.status(500).json({
-      error: error.message || "Unable to save score."
-    });
+    return res.status(500).json({ error: error.message || "Unable to save score." });
   }
 }
