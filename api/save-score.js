@@ -30,14 +30,14 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Hole number is required." });
     }
 
-    if (score === undefined || score === null || String(score).trim() === "") {
-      return res.status(400).json({ error: "Score is required." });
-    }
-
-    const numericScore = Number(score);
-
-    if (!Number.isInteger(numericScore) || numericScore < 1 || numericScore > 20) {
-      return res.status(400).json({ error: "Score must be a whole number between 1 and 20." });
+    // ⭐ THE VERIFIED FIX: Safely handles blanks without crashing
+    let finalScore = "";
+    if (score !== undefined && score !== null && String(score).trim() !== "") {
+      const numericScore = Number(score);
+      if (!Number.isInteger(numericScore) || numericScore < 1 || numericScore > 20) {
+        return res.status(400).json({ error: "Score must be a whole number between 1 and 20 (or left blank)." });
+      }
+      finalScore = numericScore;
     }
 
     if (!["team", "individual"].includes(scoringMode)) {
@@ -46,15 +46,12 @@ export default async function handler(req, res) {
 
     const rows = await getDataRows();
 
-    // ⭐ THE FIX: Removed the strict "scorecard_token" filter! 
-    // Now it finds the token on ANY row as long as it matches and is active.
     let tokenRow = rows.find((row) =>
       String(row.token || "").trim() === String(token || "").trim() &&
       String(row.round_id || row.roundId || "").trim() === String(roundId || "").trim() &&
       String(row.status || "").trim().toLowerCase() === "active"
     );
 
-    // ⭐ SAFETY NET: If the sheet's token column is blank but they have a valid manufactured key
     if (!tokenRow && String(token).startsWith("player-")) {
       const parts = String(token).split("-");
       if (parts.length >= 3) {
@@ -75,7 +72,6 @@ export default async function handler(req, res) {
     }
 
     const now = new Date().toISOString();
-
     const isAdminToken = String(tokenRow.player_id || tokenRow.playerId || "").trim().toLowerCase() === "admin";
 
     if (scoringMode === "team") {
@@ -110,7 +106,7 @@ export default async function handler(req, res) {
           "",
           "team",
           holeNumber,
-          numericScore,
+          finalScore, // ⭐ Writing the safely verified finalScore
           "",
           "active",
           now,
@@ -153,7 +149,7 @@ export default async function handler(req, res) {
           "",
           "individual",
           holeNumber,
-          numericScore,
+          finalScore, // ⭐ Writing the safely verified finalScore
           "",
           "active",
           now,
