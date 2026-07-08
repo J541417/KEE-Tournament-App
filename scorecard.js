@@ -225,21 +225,53 @@ function buildParRow(holes) {
   return row;
 }
 
+// ⭐ HELPER: Formats a name to "First L."
+function formatShortName(fullName) {
+  if (!fullName) return "Player";
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0];
+  const first = parts[0];
+  const lastInitial = parts[parts.length - 1].charAt(0).toUpperCase();
+  return `${first} ${lastInitial}.`;
+}
+
+// ⭐ HELPER: Finds the first blank hole so they don't have to scroll
+function getFirstBlankHole(targetId, mode) {
+  const holes = scorecardState.scorecard.holes;
+  for (const hole of holes) {
+    const score = mode === "team" 
+      ? getTeamScore(targetId, hole.holeNumber) 
+      : getIndividualScore(targetId, hole.holeNumber);
+    
+    if (score === "" || score === null || score === undefined) {
+      return hole.holeNumber;
+    }
+  }
+  return 1; // Fallback to hole 1 if the whole card is full
+}
+
 function buildTeamScoreRow(team, holes) {
   const row = document.createElement("tr");
 
-  // ⭐ NEW: Chunk the names into groups of 2 and join them with a line break
-  const safeNames = team.players.map((player) => escapeHtml(player.playerName));
-  const groupedNames = [];
-  for (let i = 0; i < safeNames.length; i += 2) {
-    groupedNames.push(safeNames.slice(i, i + 2).join(", "));
+  // ⭐ UI FIX: Extract first player and put the rest in a native dropdown box
+  const firstPlayerName = team.players.length > 0 ? formatShortName(team.players[0].playerName) : "";
+  let dropdownHtml = "";
+  
+  if (team.players.length > 1) {
+    const otherPlayers = team.players.slice(1);
+    dropdownHtml = `
+      <select class="scorecard-subtext" style="background: transparent; border: 1px solid #ccc; border-radius: 4px; padding: 2px; margin-top: 4px; max-width: 100px; font-size: 0.85em;">
+        <option value="">+${otherPlayers.length} More</option>
+        ${otherPlayers.map(p => `<option disabled>${escapeHtml(formatShortName(p.playerName))}</option>`).join("")}
+      </select>
+    `;
   }
-  const displayNames = groupedNames.join("<br/>");
 
   const nameCell = document.createElement("td");
   nameCell.innerHTML = `
     <strong>Team ${escapeHtml(team.teamNumber)}</strong>
-    <span class="scorecard-subtext" style="line-height: 1.4;">${displayNames}</span>
+    <div style="font-weight: bold; margin-top: 2px; color: var(--primary-dark); font-size: 0.9em;">${escapeHtml(firstPlayerName)}</div>
+    ${dropdownHtml}
   `;
   row.appendChild(nameCell);
 
@@ -247,12 +279,14 @@ function buildTeamScoreRow(team, holes) {
     const score = getTeamScore(team.teamId, hole.holeNumber);
     const cell = document.createElement("td");
     cell.textContent = score || "-";
+    
+    // ⭐ UI FIX: Bold all scores
+    cell.style.fontWeight = "bold";
 
     if (score !== "") {
       const outrightWinnerId = getOutrightLowest(hole.holeNumber);
       if (outrightWinnerId === team.teamId) {
         cell.style.backgroundColor = "#e8f5e9";
-        cell.style.fontWeight = "bold";
         cell.style.color = "#1b5e20";
       }
     }
@@ -262,6 +296,7 @@ function buildTeamScoreRow(team, holes) {
 
   const plusMinusCell = document.createElement("td");
   plusMinusCell.textContent = formatPlusMinus(calculateTeamPlusMinus(team.teamId));
+  plusMinusCell.style.fontWeight = "bold"; // ⭐ Bold the total score
   row.appendChild(plusMinusCell);
 
   const actionCell = document.createElement("td");
@@ -278,7 +313,7 @@ function buildTeamScoreRow(team, holes) {
       mode: "team",
       team,
       player: null,
-      holeNumber: scorecardState.visibleStartHole
+      holeNumber: getFirstBlankHole(team.teamId, "team") // ⭐ Jump directly to the empty hole!
     });
   });
 
@@ -302,12 +337,14 @@ function buildIndividualScoreRow(team, player, holes) {
     const score = getIndividualScore(player.playerId, hole.holeNumber);
     const cell = document.createElement("td");
     cell.textContent = score || "-";
+    
+    // ⭐ UI FIX: Bold all scores
+    cell.style.fontWeight = "bold";
 
     if (score !== "") {
       const outrightWinnerId = getOutrightLowest(hole.holeNumber);
       if (outrightWinnerId === player.playerId) {
         cell.style.backgroundColor = "#e8f5e9";
-        cell.style.fontWeight = "bold";
         cell.style.color = "#1b5e20";
       }
     }
@@ -317,6 +354,7 @@ function buildIndividualScoreRow(team, player, holes) {
 
   const plusMinusCell = document.createElement("td");
   plusMinusCell.textContent = formatPlusMinus(calculateIndividualPlusMinus(player.playerId));
+  plusMinusCell.style.fontWeight = "bold"; // ⭐ Bold the total score
   row.appendChild(plusMinusCell);
 
   const actionCell = document.createElement("td");
@@ -333,7 +371,7 @@ function buildIndividualScoreRow(team, player, holes) {
       mode: "individual",
       team,
       player,
-      holeNumber: scorecardState.visibleStartHole
+      holeNumber: getFirstBlankHole(player.playerId, "individual") // ⭐ Jump directly to the empty hole!
     });
   });
 
@@ -396,11 +434,13 @@ function openGlobalScoreEntry() {
     }
   }
 
+  const targetId = scorecard.scoringMode === "team" ? targetTeam.teamId : targetPlayer.playerId;
+
   openScoreEntry({
     mode: scorecard.scoringMode,
     team: targetTeam,
     player: targetPlayer,
-    holeNumber: scorecardState.visibleStartHole
+    holeNumber: getFirstBlankHole(targetId, scorecard.scoringMode) // ⭐ Jump directly to the empty hole!
   });
 }
 
@@ -433,8 +473,9 @@ function renderEntryView() {
     Number(item.holeNumber) === Number(target.holeNumber)
   );
 
+  // Use formatShortName for the team mode participant display too!
   const participantName = target.mode === "team"
-    ? `Team ${target.team.teamNumber}`
+    ? `Team ${target.team.teamNumber} (${target.team.players.length > 0 ? formatShortName(target.team.players[0].playerName) : "Roster"})`
     : target.player.playerName;
 
   const currentScore = target.mode === "team"
@@ -492,7 +533,7 @@ async function saveEntryScore(closeView = true) {
       teamId: target.team.teamId,
       playerId: target.player?.playerId || "",
       holeNumber: target.holeNumber,
-      score: elements.entryScoreInput?.value || ""
+      score: elements.entryScoreInput?.value || "" // Safely passes blank scores down
     });
 
     if (closeView) {
