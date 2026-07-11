@@ -181,9 +181,16 @@ function buildHeaderRow(holes) {
 
   const nameCell = document.createElement("th");
   nameCell.textContent = "Player";
-  // ⭐ UI FIX: The 1% width trick forces the column to shrink-wrap tightly around the text
-  nameCell.style.width = "1%";
+  
+  // ⭐ UI FIX: The Ultimate Pixel Lock! Prevents stretching under any circumstance
+  nameCell.style.width = "65px";
+  nameCell.style.minWidth = "65px";
+  nameCell.style.maxWidth = "65px";
+  nameCell.style.overflow = "hidden";
   nameCell.style.whiteSpace = "nowrap";
+  nameCell.style.paddingLeft = "4px"; // Reduced padding to reclaim space
+  nameCell.style.paddingRight = "4px";
+  
   row.appendChild(nameCell);
 
   holes.forEach((hole) => {
@@ -228,7 +235,6 @@ function buildParRow(holes) {
   return row;
 }
 
-// ⭐ HELPER: Formats a name to "First L." and strictly caps it at 7 characters
 function formatShortName(fullName) {
   if (!fullName) return "Player";
   const parts = fullName.trim().split(/\s+/);
@@ -240,7 +246,6 @@ function formatShortName(fullName) {
   return formatted.length > 7 ? formatted.substring(0, 7).trim() : formatted;
 }
 
-// ⭐ HELPER: Truncates Individual names to strictly 7 characters
 function formatIndividualName(fullName) {
   if (!fullName) return "Player";
   let formatted = fullName.trim();
@@ -258,7 +263,7 @@ function getFirstBlankHole(targetId, mode) {
       return hole.holeNumber;
     }
   }
-  return 1;
+  return 1; 
 }
 
 function buildTeamScoreRow(team, holes) {
@@ -269,8 +274,9 @@ function buildTeamScoreRow(team, holes) {
   
   if (team.players.length > 1) {
     const otherPlayers = team.players.slice(1);
+    // ⭐ UI FIX: Restricted the width of the dropdown to strictly 55px so it doesn't break the cell
     dropdownHtml = `
-      <select class="scorecard-subtext" style="background: transparent; border: 1px solid #ccc; border-radius: 4px; padding: 0px 2px; margin-top: 4px; max-width: 100%; font-size: 0.8em;">
+      <select class="scorecard-subtext" style="background: transparent; border: 1px solid #ccc; border-radius: 4px; padding: 0px 2px; margin-top: 4px; width: 55px; max-width: 55px; font-size: 0.75em; overflow: hidden;">
         <option value="">+${otherPlayers.length}</option>
         ${otherPlayers.map(p => `<option disabled>${escapeHtml(formatShortName(p.playerName))}</option>`).join("")}
       </select>
@@ -278,13 +284,17 @@ function buildTeamScoreRow(team, holes) {
   }
 
   const nameCell = document.createElement("td");
-  // ⭐ UI FIX: Shrink-wrap this cell
-  nameCell.style.width = "1%";
+  // ⭐ UI FIX: The Ultimate Pixel Lock for the rows
+  nameCell.style.width = "65px";
+  nameCell.style.minWidth = "65px";
+  nameCell.style.maxWidth = "65px";
+  nameCell.style.overflow = "hidden";
   nameCell.style.whiteSpace = "nowrap";
+  nameCell.style.paddingLeft = "4px";
+  nameCell.style.paddingRight = "4px";
 
-  // ⭐ UI FIX: Removed the "Team X" text completely
   nameCell.innerHTML = `
-    <div style="font-weight: bold; color: var(--primary-dark); font-size: 0.95em;">${escapeHtml(firstPlayerName)}</div>
+    <div style="font-weight: bold; color: var(--primary-dark); font-size: 0.95em; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(firstPlayerName)}</div>
     ${dropdownHtml}
   `;
   row.appendChild(nameCell);
@@ -340,15 +350,19 @@ function buildIndividualScoreRow(team, player, holes) {
   const row = document.createElement("tr");
 
   const nameCell = document.createElement("td");
-  // ⭐ UI FIX: Shrink-wrap this cell
-  nameCell.style.width = "1%";
+  // ⭐ UI FIX: The Ultimate Pixel Lock for individual rows
+  nameCell.style.width = "65px";
+  nameCell.style.minWidth = "65px";
+  nameCell.style.maxWidth = "65px";
+  nameCell.style.overflow = "hidden";
   nameCell.style.whiteSpace = "nowrap";
+  nameCell.style.paddingLeft = "4px";
+  nameCell.style.paddingRight = "4px";
 
   const displayName = formatIndividualName(player.playerName);
 
-  // ⭐ UI FIX: Removed the "Team X" text completely
   nameCell.innerHTML = `
-    <div style="font-weight: bold; font-size: 0.95em;">${escapeHtml(displayName)}</div>
+    <div style="font-weight: bold; font-size: 0.95em; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(displayName)}</div>
   `;
   row.appendChild(nameCell);
 
