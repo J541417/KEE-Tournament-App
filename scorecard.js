@@ -181,8 +181,9 @@ function buildHeaderRow(holes) {
 
   const nameCell = document.createElement("th");
   nameCell.textContent = scorecardState.scorecard.scoringMode === "team" ? "Team" : "Player";
-  // ⭐ UI FIX: strictly cap column width to 10 characters to save space
-  nameCell.style.maxWidth = "10ch";
+  // ⭐ UI FIX: Force strictly 7 characters wide
+  nameCell.style.width = "7ch";
+  nameCell.style.maxWidth = "7ch";
   nameCell.style.overflow = "hidden";
   nameCell.style.whiteSpace = "nowrap";
   row.appendChild(nameCell);
@@ -229,7 +230,7 @@ function buildParRow(holes) {
   return row;
 }
 
-// ⭐ HELPER: Formats a name to "First L." and strictly caps it at 10 characters
+// ⭐ HELPER: Formats a name to "First L." and strictly caps it at 7 characters
 function formatShortName(fullName) {
   if (!fullName) return "Player";
   const parts = fullName.trim().split(/\s+/);
@@ -238,14 +239,14 @@ function formatShortName(fullName) {
     const lastInitial = parts[parts.length - 1].charAt(0).toUpperCase();
     formatted = `${parts[0]} ${lastInitial}.`;
   }
-  return formatted.length > 10 ? formatted.substring(0, 10).trim() : formatted;
+  return formatted.length > 7 ? formatted.substring(0, 7).trim() : formatted;
 }
 
-// ⭐ HELPER: Truncates Individual names to strictly 10 characters
+// ⭐ HELPER: Truncates Individual names to strictly 7 characters
 function formatIndividualName(fullName) {
   if (!fullName) return "Player";
   let formatted = fullName.trim();
-  return formatted.length > 10 ? formatted.substring(0, 10).trim() : formatted;
+  return formatted.length > 7 ? formatted.substring(0, 7).trim() : formatted;
 }
 
 // ⭐ HELPER: Finds the first blank hole so they don't have to scroll
@@ -280,12 +281,14 @@ function buildTeamScoreRow(team, holes) {
   }
 
   const nameCell = document.createElement("td");
-  nameCell.style.maxWidth = "10ch";
+  // ⭐ UI FIX: Apply strict 7-character constraints to the team cell
+  nameCell.style.width = "7ch";
+  nameCell.style.maxWidth = "7ch";
   nameCell.style.overflow = "hidden";
   nameCell.style.whiteSpace = "nowrap";
 
   nameCell.innerHTML = `
-    <strong>Team ${escapeHtml(team.teamNumber)}</strong>
+    <strong>T-${escapeHtml(team.teamNumber)}</strong>
     <div style="font-weight: bold; margin-top: 2px; color: var(--primary-dark); font-size: 0.9em; text-overflow: ellipsis; overflow: hidden;">${escapeHtml(firstPlayerName)}</div>
     ${dropdownHtml}
   `;
@@ -342,7 +345,9 @@ function buildIndividualScoreRow(team, player, holes) {
   const row = document.createElement("tr");
 
   const nameCell = document.createElement("td");
-  nameCell.style.maxWidth = "10ch";
+  // ⭐ UI FIX: Apply strict 7-character constraints to the individual cell
+  nameCell.style.width = "7ch";
+  nameCell.style.maxWidth = "7ch";
   nameCell.style.overflow = "hidden";
   nameCell.style.whiteSpace = "nowrap";
 
@@ -350,7 +355,7 @@ function buildIndividualScoreRow(team, player, holes) {
 
   nameCell.innerHTML = `
     <div style="text-overflow: ellipsis; overflow: hidden;"><strong>${escapeHtml(displayName)}</strong></div>
-    <span class="scorecard-subtext">Team ${escapeHtml(team.teamNumber)}</span>
+    <span class="scorecard-subtext">T-${escapeHtml(team.teamNumber)}</span>
   `;
   row.appendChild(nameCell);
 
