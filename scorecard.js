@@ -180,11 +180,9 @@ function buildHeaderRow(holes) {
   const row = document.createElement("tr");
 
   const nameCell = document.createElement("th");
-  nameCell.textContent = scorecardState.scorecard.scoringMode === "team" ? "Team" : "Player";
-  // ⭐ UI FIX: Force strictly 7 characters wide
-  nameCell.style.width = "7ch";
-  nameCell.style.maxWidth = "7ch";
-  nameCell.style.overflow = "hidden";
+  nameCell.textContent = "Player";
+  // ⭐ UI FIX: The 1% width trick forces the column to shrink-wrap tightly around the text
+  nameCell.style.width = "1%";
   nameCell.style.whiteSpace = "nowrap";
   row.appendChild(nameCell);
 
@@ -249,7 +247,6 @@ function formatIndividualName(fullName) {
   return formatted.length > 7 ? formatted.substring(0, 7).trim() : formatted;
 }
 
-// ⭐ HELPER: Finds the first blank hole so they don't have to scroll
 function getFirstBlankHole(targetId, mode) {
   const holes = scorecardState.scorecard.holes;
   for (const hole of holes) {
@@ -261,7 +258,7 @@ function getFirstBlankHole(targetId, mode) {
       return hole.holeNumber;
     }
   }
-  return 1; // Fallback to hole 1 if the whole card is full
+  return 1;
 }
 
 function buildTeamScoreRow(team, holes) {
@@ -273,23 +270,21 @@ function buildTeamScoreRow(team, holes) {
   if (team.players.length > 1) {
     const otherPlayers = team.players.slice(1);
     dropdownHtml = `
-      <select class="scorecard-subtext" style="background: transparent; border: 1px solid #ccc; border-radius: 4px; padding: 2px; margin-top: 4px; max-width: 100%; font-size: 0.85em; overflow: hidden; text-overflow: ellipsis;">
-        <option value="">+${otherPlayers.length} More</option>
+      <select class="scorecard-subtext" style="background: transparent; border: 1px solid #ccc; border-radius: 4px; padding: 0px 2px; margin-top: 4px; max-width: 100%; font-size: 0.8em;">
+        <option value="">+${otherPlayers.length}</option>
         ${otherPlayers.map(p => `<option disabled>${escapeHtml(formatShortName(p.playerName))}</option>`).join("")}
       </select>
     `;
   }
 
   const nameCell = document.createElement("td");
-  // ⭐ UI FIX: Apply strict 7-character constraints to the team cell
-  nameCell.style.width = "7ch";
-  nameCell.style.maxWidth = "7ch";
-  nameCell.style.overflow = "hidden";
+  // ⭐ UI FIX: Shrink-wrap this cell
+  nameCell.style.width = "1%";
   nameCell.style.whiteSpace = "nowrap";
 
+  // ⭐ UI FIX: Removed the "Team X" text completely
   nameCell.innerHTML = `
-    <strong>T-${escapeHtml(team.teamNumber)}</strong>
-    <div style="font-weight: bold; margin-top: 2px; color: var(--primary-dark); font-size: 0.9em; text-overflow: ellipsis; overflow: hidden;">${escapeHtml(firstPlayerName)}</div>
+    <div style="font-weight: bold; color: var(--primary-dark); font-size: 0.95em;">${escapeHtml(firstPlayerName)}</div>
     ${dropdownHtml}
   `;
   row.appendChild(nameCell);
@@ -345,17 +340,15 @@ function buildIndividualScoreRow(team, player, holes) {
   const row = document.createElement("tr");
 
   const nameCell = document.createElement("td");
-  // ⭐ UI FIX: Apply strict 7-character constraints to the individual cell
-  nameCell.style.width = "7ch";
-  nameCell.style.maxWidth = "7ch";
-  nameCell.style.overflow = "hidden";
+  // ⭐ UI FIX: Shrink-wrap this cell
+  nameCell.style.width = "1%";
   nameCell.style.whiteSpace = "nowrap";
 
   const displayName = formatIndividualName(player.playerName);
 
+  // ⭐ UI FIX: Removed the "Team X" text completely
   nameCell.innerHTML = `
-    <div style="text-overflow: ellipsis; overflow: hidden;"><strong>${escapeHtml(displayName)}</strong></div>
-    <span class="scorecard-subtext">T-${escapeHtml(team.teamNumber)}</span>
+    <div style="font-weight: bold; font-size: 0.95em;">${escapeHtml(displayName)}</div>
   `;
   row.appendChild(nameCell);
 
@@ -499,7 +492,7 @@ function renderEntryView() {
   );
 
   const participantName = target.mode === "team"
-    ? `Team ${target.team.teamNumber} (${target.team.players.length > 0 ? formatShortName(target.team.players[0].playerName) : "Roster"})`
+    ? (target.team.players.length > 0 ? formatShortName(target.team.players[0].playerName) : "Team")
     : formatIndividualName(target.player.playerName);
 
   const currentScore = target.mode === "team"
