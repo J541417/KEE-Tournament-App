@@ -79,7 +79,15 @@ async function loadScorecard() {
   }
 
   try {
-    const response = await fetch(`/api/get-scorecard?token=${encodeURIComponent(scorecardState.token)}`);
+    // ⭐ THE FIX: Added &t=${Date.now()} to bust the cache and force fresh data
+    const response = await fetch(`/api/get-scorecard?token=${encodeURIComponent(scorecardState.token)}&t=${Date.now()}`, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
+    
     const data = await response.json();
 
     if (!response.ok) {
@@ -188,7 +196,7 @@ function buildHeaderRow(holes) {
   nameCell.style.maxWidth = "65px";
   nameCell.style.overflow = "hidden";
   nameCell.style.whiteSpace = "nowrap";
-  nameCell.style.paddingLeft = "4px"; // Reduced padding to reclaim space
+  nameCell.style.paddingLeft = "4px"; 
   nameCell.style.paddingRight = "4px";
   
   row.appendChild(nameCell);
@@ -274,7 +282,6 @@ function buildTeamScoreRow(team, holes) {
   
   if (team.players.length > 1) {
     const otherPlayers = team.players.slice(1);
-    // ⭐ UI FIX: Restricted the width of the dropdown to strictly 55px so it doesn't break the cell
     dropdownHtml = `
       <select class="scorecard-subtext" style="background: transparent; border: 1px solid #ccc; border-radius: 4px; padding: 0px 2px; margin-top: 4px; width: 55px; max-width: 55px; font-size: 0.75em; overflow: hidden;">
         <option value="">+${otherPlayers.length}</option>
