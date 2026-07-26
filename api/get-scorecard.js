@@ -8,6 +8,11 @@ export default async function handler(req, res) {
     });
   }
 
+  // ⭐ Cache Buster for Vercel Backend
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+
   try {
     const token = String(req.query.token || "").trim();
 
@@ -23,20 +28,19 @@ export default async function handler(req, res) {
       getRows(TAB_NAMES.PLAYERS)
     ]);
 
-    // ⭐ FIX 1: Find the token on ANY row, ignoring 'record_type' restrictions
-    let tokenRow = dataRows.find((row) =>
+    // ⭐ THE FIX: Added [...dataRows].reverse() to search from Bottom-to-Top (Newest First)
+    let tokenRow = [...dataRows].reverse().find((row) =>
       String(row.token || "").trim() === token &&
       String(row.status || "").trim().toLowerCase() === "active"
     );
 
-    // ⭐ FIX 2: If the token isn't explicitly saved in a 'token' column, reconstruct it!
     if (!tokenRow && token.startsWith("player-")) {
       const parts = token.split("-");
       if (parts.length >= 3) {
         const pId = parts[1];
         const rId = parts.slice(2).join("-");
         
-        tokenRow = dataRows.find((row) => 
+        tokenRow = [...dataRows].reverse().find((row) => 
           String(row.player_id || row.playerId || "").trim() === pId &&
           String(row.round_id || row.roundId || "").trim() === rId &&
           String(row.status || "").trim().toLowerCase() === "active"
@@ -53,8 +57,8 @@ export default async function handler(req, res) {
     const roundId = String(tokenRow.round_id || tokenRow.roundId || "").trim();
     const tournamentId = tokenRow.tournament_id;
 
-    // ⭐ FIX 3: Check for 'round' OR 'round_info' exactly like our fixed search engine does
-    const round = dataRows.find((row) => {
+    // ⭐ THE FIX: Also grab the newest Round Info from the bottom up
+    const round = [...dataRows].reverse().find((row) => {
       const recType = String(row.record_type || "").trim().toLowerCase();
       return (recType === "round" || recType === "round_info") &&
              String(row.round_id || "").trim() === roundId &&
@@ -69,7 +73,6 @@ export default async function handler(req, res) {
 
     const loggedInPlayerId = String(tokenRow.player_id || tokenRow.playerId || "").trim();
 
-    // ⭐ FIX 4: Rip out the old 'Phone Number' logic and use the proper Player ID
     const loggedInPlayerSheetRow = playerRows.find((row) => {
       const sheetPlayerId = String(row["Player ID"] || row["ID"] || row["PlayerId"] || "").trim();
       return sheetPlayerId === loggedInPlayerId;
@@ -152,6 +155,7 @@ export default async function handler(req, res) {
         return;
       }
 
+      // If a score gets updated later, the newest one at the bottom of the sheet will overwrite the older ones in this object
       scores[key] = {
         score: row.score || "",
         updatedAt: row.updated_at || ""
