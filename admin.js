@@ -10,7 +10,7 @@ const elements = {};
 document.addEventListener("DOMContentLoaded", () => {
   elements.adminStatusBadge = document.getElementById("adminStatusBadge");
   
-  // ⭐ NEW: Hooking up the simple login box and button instead of the old form
+  // ⭐ Hooking up the simple login box and button instead of the old form
   elements.loginBox = document.getElementById("loginBox");
   elements.doLoginButton = document.getElementById("doLoginButton");
   
@@ -32,10 +32,10 @@ document.addEventListener("DOMContentLoaded", () => {
   elements.saveRoundButton = document.getElementById("saveRoundButton");
   elements.message = document.getElementById("message");
 
-  // ⭐ NEW: Listen for a simple click
+  // ⭐ Listen for a simple click
   elements.doLoginButton?.addEventListener("click", handleLogin);
 
-  // ⭐ NEW: Allow pressing "Enter" in the password box
+  // ⭐ Allow pressing "Enter" in the password box
   elements.adminPassword?.addEventListener("keypress", (e) => {
     if (e.key === "Enter") {
       handleLogin(e);
@@ -112,8 +112,14 @@ async function loadAdminData() {
     adminState.courses = coursesData.courses || [];
     populateCourses();
 
+    // ⭐ AUTO-FILL TODAY'S DATE (Local Timezone Safe)
     const today = new Date();
-    if (elements.roundDate) elements.roundDate.value = today.toISOString().slice(0, 10);
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    if (elements.roundDate) {
+      elements.roundDate.value = `${yyyy}-${mm}-${dd}`;
+    }
 
     if (activeRoundResponse.ok) {
       const activeData = await activeRoundResponse.json();
