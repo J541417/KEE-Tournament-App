@@ -18,6 +18,11 @@
   box-sizing: border-box;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
   font-family: Arial, Helvetica, sans-serif;
@@ -25,10 +30,12 @@ body {
   color: var(--text);
   font-size: 1rem;
   line-height: 1.45;
+  overflow-x: hidden;
 }
 
 .page-shell {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -142,6 +149,7 @@ select {
   padding: 15px 16px;
   font-size: 1.05rem;
   background: #ffffff;
+  touch-action: manipulation;
 }
 
 button {
@@ -154,6 +162,7 @@ button {
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
+  touch-action: manipulation;
 }
 
 button:hover {
@@ -266,41 +275,6 @@ button:disabled {
   display: none;
 }
 
-@media (max-width: 700px) {
-  :root {
-    font-size: 18px;
-  }
-
-  .page-shell {
-    align-items: flex-start;
-    padding: 16px;
-  }
-
-  .card {
-    padding: 24px;
-    border-radius: 20px;
-  }
-
-  .header {
-    flex-direction: column;
-  }
-
-  .input-row {
-    flex-direction: column;
-  }
-
-  .admin-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .team-header {
-    flex-direction: column;
-  }
-
-  button {
-    width: 100%;
-  }
-}
 .scorecard-card {
   max-width: 980px;
 }
@@ -349,16 +323,6 @@ button:disabled {
   font-weight: 700;
 }
 
-@media (max-width: 700px) {
-  .hole-nav {
-    grid-template-columns: repeat(6, 1fr);
-  }
-
-  .score-entry-row,
-  .individual-score-row {
-    grid-template-columns: 1fr;
-  }
-}
 .scorecard-table-wrapper {
   width: 100%;
   overflow-x: auto;
@@ -436,24 +400,6 @@ button:disabled {
   margin-top: 16px;
 }
 
-@media (max-width: 700px) {
-  .scorecard-toolbar {
-    grid-template-columns: 1fr;
-  }
-
-  .score-entry-actions {
-    grid-template-columns: 1fr;
-  }
-
-  .scorecard-table {
-    min-width: 620px;
-  }
-
-  .scorecard-table th,
-  .scorecard-table td {
-    padding: 10px 8px;
-  }
-}
 .compact-scorecard-card {
   padding-top: 26px;
 }
@@ -553,7 +499,81 @@ button:disabled {
   padding: 18px;
 }
 
+.scorecard-table th:first-child,
+.scorecard-table td:first-child {
+  position: sticky;
+  left: 0;
+  background-color: #ffffff; /* Keeps the text behind from showing through */
+  z-index: 2;
+  box-shadow: 2px 0 5px rgba(0,0,0,0.05); /* Adds a tiny shadow so you can tell it's overlapping */
+}
+
+/* Make sure the top-left header stays on top of everything */
+.scorecard-table th:first-child {
+  z-index: 3;
+}
+
 @media (max-width: 700px) {
+  :root {
+    font-size: 18px;
+  }
+
+  .page-shell {
+    align-items: flex-start;
+    padding: 16px;
+  }
+
+  .card {
+    padding: 24px;
+    border-radius: 20px;
+  }
+
+  .header {
+    flex-direction: column;
+  }
+
+  .input-row {
+    flex-direction: column;
+  }
+
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .team-header {
+    flex-direction: column;
+  }
+
+  button {
+    width: 100%;
+  }
+
+  .hole-nav {
+    grid-template-columns: repeat(6, 1fr);
+  }
+
+  .score-entry-row,
+  .individual-score-row {
+    grid-template-columns: 1fr;
+  }
+
+  .scorecard-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .score-entry-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .scorecard-table {
+    min-width: 620px;
+  }
+
+  .scorecard-table th,
+  .scorecard-table td {
+    padding: 10px 8px;
+  }
+
   .compact-scorecard-card {
     padding: 18px;
   }
@@ -579,19 +599,4 @@ button:disabled {
   .big-score-input {
     max-width: 100%;
   }
-}
-
-/* ⭐ UPGRADE: Freeze the first column of the scorecard */
-.scorecard-table th:first-child,
-.scorecard-table td:first-child {
-  position: sticky;
-  left: 0;
-  background-color: #ffffff; /* Keeps the text behind from showing through */
-  z-index: 2;
-  box-shadow: 2px 0 5px rgba(0,0,0,0.05); /* Adds a tiny shadow so you can tell it's overlapping */
-}
-
-/* Make sure the top-left header stays on top of everything */
-.scorecard-table th:first-child {
-  z-index: 3;
 }
