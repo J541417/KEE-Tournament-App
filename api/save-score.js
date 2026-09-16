@@ -1,10 +1,8 @@
-import { appendDataRows, getDataRows } from "../lib/googleSheets.js";
+import { appendDataRows, getDataRows, getRows } from "../lib/googleSheets.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
-    return res.status(405).json({
-      error: "Method not allowed."
-    });
+    return res.status(405).json({ error: "Method not allowed." });
   }
 
   try {
@@ -15,22 +13,16 @@ export default async function handler(req, res) {
       teamId,
       playerId,
       holeNumber,
-      score
+      score,
+      targetRound,   // ⭐ NEW: Allow frontend to specify which Round this score belongs to
+      targetCourse   // ⭐ NEW: Allow frontend to specify the Course
     } = req.body || {};
 
-    if (!token) {
-      return res.status(400).json({ error: "Scorecard token is required." });
-    }
+    if (!token) return res.status(400).json({ error: "Scorecard token is required." });
+    if (!roundId) return res.status(400).json({ error: "Round ID is required." });
+    if (!holeNumber) return res.status(400).json({ error: "Hole number is required." });
 
-    if (!roundId) {
-      return res.status(400).json({ error: "Round ID is required." });
-    }
-
-    if (!holeNumber) {
-      return res.status(400).json({ error: "Hole number is required." });
-    }
-
-    // ⭐ THE VERIFIED FIX: Safely handles blanks without crashing
+    // Safely handles blanks without crashing
     let finalScore = "";
     if (score !== undefined && score !== null && String(score).trim() !== "") {
       const numericScore = Number(score);
@@ -44,7 +36,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Scoring mode must be team or individual." });
     }
 
-    const rows = await getDataRows();
+    // ⭐ NEW: Fetch both Data-Tour AND the new 'round' matrix tab
+    const [rows, tournamentRoundRows] = await Promise.all([
+      getDataRows(),
+      getRows("round")
+    ]);
 
     let tokenRow = rows.find((row) =>
       String(row.token || "").trim() === String(token || "").trim() &&
@@ -66,24 +62,36 @@ export default async function handler(req, res) {
     }
 
     if (!tokenRow) {
-      return res.status(403).json({
-        error: "Invalid or expired scorecard token."
-      });
+      return res.status(403).json({ error: "Invalid or expired scorecard token." });
+    }
+
+    // ⭐ NEW: Determine the active Round and Course for this specific score
+    let activeRoundNumber = targetRound;
+    let activeCourseName = targetCourse;
+    const loggedInPlayerId = String(tokenRow.player_id || tokenRow.playerId || "").trim();
+
+    if (!activeRoundNumber || !activeCourseName) {
+       const playerSchedule = tournamentRoundRows.find(row => 
+         String(row["Player 1"] || "").includes(loggedInPlayerId) ||
+         String(row["Player 2"] || "").includes(loggedInPlayerId) ||
+         String(row["Player 3"] || "").includes(loggedInPlayerId) ||
+         String(row["Player 4"] || "").includes(loggedInPlayerId)
+       );
+       
+       if (playerSchedule) {
+         activeRoundNumber = String(playerSchedule.Round || "");
+         activeCourseName = String(playerSchedule.Course || "");
+       }
     }
 
     const now = new Date().toISOString();
-    const isAdminToken = String(tokenRow.player_id || tokenRow.playerId || "").trim().toLowerCase() === "admin";
+    const isAdminToken = loggedInPlayerId.toLowerCase() === "admin";
 
     if (scoringMode === "team") {
-      if (!teamId) {
-        return res.status(400).json({ error: "Team ID is required for team scoring." });
-      }
+      if (!teamId) return res.status(400).json({ error: "Team ID is required for team scoring." });
 
       const authorizedForTeam = isAdminToken || String(tokenRow.team_id || "").trim() === String(teamId || "").trim();
-
-      if (!authorizedForTeam) {
-        return res.status(403).json({ error: "You are not authorized to score for this team." });
-      }
+      if (!authorizedForTeam) return res.status(403).json({ error: "You are not authorized to score for this team." });
 
       const targetTeamRow = rows.find(row => 
         String(row.record_type || "").trim() === "team" && 
@@ -96,17 +104,17 @@ export default async function handler(req, res) {
           "team_score",
           targetTeamRow.tournament_id || "",
           roundId,
-          targetTeamRow.round_number || "",
+          activeRoundNumber || targetTeamRow.round_number || "", // ⭐ Saves Round (1-10)
           teamId,
           targetTeamRow.team_number || "",
           "",
           "",
-          "",
+          activeCourseName || "", // ⭐ Saves Course Name exactly where the database expects it
           "",
           "",
           "team",
           holeNumber,
-          finalScore, // ⭐ Writing the safely verified finalScore
+          finalScore,
           "",
           "active",
           now,
@@ -118,15 +126,10 @@ export default async function handler(req, res) {
     }
 
     if (scoringMode === "individual") {
-      if (!playerId) {
-        return res.status(400).json({ error: "Player ID is required for individual scoring." });
-      }
+      if (!playerId) return res.status(400).json({ error: "Player ID is required for individual scoring." });
 
       const authorizedForPlayer = isAdminToken || String(tokenRow.player_id || tokenRow.playerId || "").trim() === String(playerId || "").trim();
-
-      if (!authorizedForPlayer) {
-        return res.status(403).json({ error: "You are not authorized to score for this player." });
-      }
+      if (!authorizedForPlayer) return res.status(403).json({ error: "You are not authorized to score for this player." });
 
       const targetPlayerRow = rows.find(row => 
         (String(row.record_type || "").trim() === "round_player" || String(row.record_type || "").trim() === "player") && 
@@ -139,17 +142,17 @@ export default async function handler(req, res) {
           "individual_score",
           targetPlayerRow.tournament_id || "",
           roundId,
-          targetPlayerRow.round_number || "",
+          activeRoundNumber || targetPlayerRow.round_number || "", // ⭐ Saves Round (1-10)
           targetPlayerRow.team_id || "",
           targetPlayerRow.team_number || "",
           playerId,
           targetPlayerRow.player_name || "",
-          "",
+          activeCourseName || "", // ⭐ Saves Course Name
           "",
           "",
           "individual",
           holeNumber,
-          finalScore, // ⭐ Writing the safely verified finalScore
+          finalScore,
           "",
           "active",
           now,
