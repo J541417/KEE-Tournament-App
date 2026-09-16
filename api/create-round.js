@@ -6,9 +6,7 @@ import {
 } from "../lib/googleSheets.js";
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed." });
-  }
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
 
   try {
     let body = req.body;
@@ -17,14 +15,7 @@ export default async function handler(req, res) {
     }
 
     const {
-      password,
-      tournamentName,
-      roundDate,
-      courseName,
-      scoringMode,
-      teams,
-      roundNumber: rawRoundNumber,
-      isNewTournament
+      password, tournamentName, roundDate, courseName, scoringMode, teams, roundNumber: rawRoundNumber, isNewTournament
     } = body || {};
 
     const actualPassword = process.env.ADMIN_PASSWORD || "James2468";
@@ -49,13 +40,11 @@ export default async function handler(req, res) {
     const tourRows = [];
     const roundMatrixRows = [];
 
-    // Tokens & Metadata
     tourRows.push(["scorecard_token", tournamentId, roundId, roundNumber, "", "", "admin", "Admin", "", "", "", "", "", "", masterToken, "active", now, "Admin Panel"]);
     tourRows.push(["round", tournamentId, roundId, roundNumber, "", "", "", "", "", courseName, roundDate, scoringMode || "team", "", "", "", "active", now, tName]);
 
     normalizedTeams.forEach((team) => {
       tourRows.push(["team", tournamentId, roundId, roundNumber, team.teamId, team.teamNumber, "", "", "", "", "", "", "", "", "", "active", now, ""]);
-
       const playerIdentifiers = [];
       team.players.forEach((player) => {
         const playerToken = `player-${player.playerId}-${roundId}`;
@@ -63,7 +52,6 @@ export default async function handler(req, res) {
         tourRows.push(["round_player", tournamentId, roundId, roundNumber, team.teamId, team.teamNumber, player.playerId, player.playerName, "", courseName, roundDate, scoringMode || "team", "", "", playerToken, "active", now, ""]);
       });
 
-      // Matrix Row
       roundMatrixRows.push([
         roundNumber, courseName, team.teamId,
         playerIdentifiers[0] || "", playerIdentifiers[1] || "", playerIdentifiers[2] || "", playerIdentifiers[3] || "",
@@ -73,35 +61,22 @@ export default async function handler(req, res) {
 
     const shouldClear = isNewTournament || roundNumber === "1";
 
-    // 1. Wipe old data
     if (shouldClear) {
       await clearDataRowsBelowHeader();
-      try {
-        await clearRoundRowsBelowHeader();
-      } catch (clearErr) {
-        console.warn("Could not clear round tab:", clearErr.message);
-      }
+      await clearRoundRowsBelowHeader();
     }
 
-    // 2. Write to Data-Tour (We know this works)
     await appendDataRows(tourRows);
+    await appendRoundRows(roundMatrixRows);
 
-    // 3. Write to 'round' with a dedicated Error Catcher
-    let matrixErrorMessage = null;
-    try {
-      await appendRoundRows(roundMatrixRows);
-    } catch (matrixErr) {
-      matrixErrorMessage = matrixErr.message;
-    }
-
-    // If the matrix fails, we send a 500 error so your browser alerts you immediately
-    if (matrixErrorMessage) {
-       return res.status(500).json({ 
-         error: `Google Sheets Error on 'round' tab: ${matrixErrorMessage}` 
-       });
-    }
-
-    return res.status(200).json({ success: true });
+    // ⭐ THE CACHE BUSTER MESSAGE
+    return res.status(200).json({ 
+      success: true,
+      tournamentId,
+      roundId,
+      token: masterToken,
+      rowsWritten: `SUCCESS! Both tabs updated for ${tName}!` 
+    });
   } catch (error) {
     return res.status(500).json({ error: error.message || "Unable to create active round." });
   }
