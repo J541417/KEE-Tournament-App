@@ -1,15 +1,13 @@
 import {
   appendDataRows,
   clearDataRowsBelowHeader,
-  appendRows,
-  clearTab
+  appendRoundRows,
+  clearRoundRowsBelowHeader
 } from "../lib/googleSheets.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
-    return res.status(405).json({
-      error: "Method not allowed."
-    });
+    return res.status(405).json({ error: "Method not allowed." });
   }
 
   try {
@@ -20,6 +18,7 @@ export default async function handler(req, res) {
 
     const {
       password,
+      tournamentName, // ⭐ NEW: Captures the Tournament Name
       roundDate,
       courseName,
       scoringMode,
@@ -34,24 +33,14 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: "Invalid admin password." });
     }
 
-    if (!roundDate) {
-      return res.status(400).json({ error: "Round date is required." });
-    }
-
-    if (!courseName) {
-      return res.status(400).json({ error: "Course is required." });
-    }
-
-    if (!["team", "individual"].includes(scoringMode)) {
-      return res.status(400).json({ error: "Scoring mode must be team or individual." });
-    }
-
-    if (!Array.isArray(teams) || teams.length === 0) {
-      return res.status(400).json({ error: "At least one team is required." });
-    }
+    if (!roundDate) return res.status(400).json({ error: "Round date is required." });
+    if (!courseName) return res.status(400).json({ error: "Course is required." });
+    if (!["team", "individual"].includes(scoringMode)) return res.status(400).json({ error: "Scoring mode must be team or individual." });
+    if (!Array.isArray(teams) || teams.length === 0) return res.status(400).json({ error: "At least one team is required." });
 
     const roundNumber = String(rawRoundNumber || "1").trim();
     const roundId = `R${roundNumber}`;
+    const tName = tournamentName || "Kee Golf Tournament"; // Fallback name
 
     const normalizedTeams = teams.map((team, index) => {
       const players = Array.isArray(team.players)
@@ -73,78 +62,23 @@ export default async function handler(req, res) {
     const tournamentId = `T${Date.now()}`;
     const masterToken = `ADMIN-${Date.now()}`;
 
-    // 1. Prepare Data-Tour rows (Tokens, system metadata, round players)
     const tourRows = [];
+    const roundMatrixRows = [];
 
     // Master Admin Token Row
     tourRows.push([
-      "scorecard_token",
-      tournamentId,
-      roundId,
-      roundNumber,
-      "",
-      "",
-      "admin",
-      "Admin",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      masterToken, 
-      "active",
-      now,
-      "Generated for Admin Panel"
+      "scorecard_token", tournamentId, roundId, roundNumber, "", "", "admin", "Admin", "", "", "", "", "", "", masterToken, "active", now, "Generated for Admin Panel"
     ]);
 
-    // Round Metadata Row
+    // Round Row (⭐ Saves the Tournament Name in the notes column so the scorecard can read it)
     tourRows.push([
-      "round",
-      tournamentId,
-      roundId,
-      roundNumber,
-      "",
-      "",
-      "",
-      "",
-      "",
-      courseName,
-      roundDate,
-      scoringMode,
-      "",
-      "",
-      "",
-      "active",
-      now,
-      "Created from admin panel"
+      "round", tournamentId, roundId, roundNumber, "", "", "", "", "", courseName, roundDate, scoringMode, "", "", "", "active", now, tName
     ]);
-
-    // 2. Prepare 'round' Matrix Tab rows
-    // Format: Round | Course | Team | Player 1 | Player 2 | Player 3 | Player 4 | Score | +/- Par
-    const roundMatrixRows = [];
 
     normalizedTeams.forEach((team) => {
-      // Team Row for Data-Tour
+      // Team Row
       tourRows.push([
-        "team",
-        tournamentId,
-        roundId,
-        roundNumber,
-        team.teamId,
-        team.teamNumber,
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "active",
-        now,
-        "Created from admin panel"
+        "team", tournamentId, roundId, roundNumber, team.teamId, team.teamNumber, "", "", "", "", "", "", "", "", "", "active", now, "Created from admin panel"
       ]);
 
       const playerIdentifiers = [];
@@ -154,28 +88,11 @@ export default async function handler(req, res) {
         playerIdentifiers.push(player.playerName || player.playerId);
 
         tourRows.push([
-          "round_player",       // 0: record_type
-          tournamentId,         // 1: tournament_id
-          roundId,              // 2: round_id
-          roundNumber,          // 3: round_number
-          team.teamId,          // 4: team_id
-          team.teamNumber,      // 5: team_number
-          player.playerId,      // 6: player_id
-          player.playerName,    // 7: player_name
-          player.rating || "",  // 8: player_rating
-          courseName,           // 9: course_name
-          roundDate,            // 10: round_date
-          scoringMode,          // 11: scoring_mode
-          "",                   // 12: hole_number
-          "",                   // 13: score
-          playerToken,          // 14: token
-          "active",             // 15: status
-          now,                  // 16: updated_at
-          "Created from admin panel"
+          "round_player", tournamentId, roundId, roundNumber, team.teamId, team.teamNumber, player.playerId, player.playerName, player.rating || "", courseName, roundDate, scoringMode, "", "", playerToken, "active", now, "Created from admin panel"
         ]);
       });
 
-      // Add to round matrix tab
+      // ⭐ THE MATRIX TAB ROW: Round | Course | Team | Player 1 | Player 2 | Player 3 | Player 4 | Score | +/- Par
       roundMatrixRows.push([
         roundNumber,
         courseName,
@@ -184,30 +101,22 @@ export default async function handler(req, res) {
         playerIdentifiers[1] || "",
         playerIdentifiers[2] || "",
         playerIdentifiers[3] || "",
-        "", // Score (Calculated during tournament)
-        ""  // +/- Par (Calculated during tournament)
+        "", // Score
+        ""  // +/- Par
       ]);
     });
 
-    // Determine whether to wipe old data or append (Round 1 / explicit new tournament = clear)
     const shouldClear = isNewTournament || roundNumber === "1";
 
+    // 1. Wipe old data if starting a New Tournament
     if (shouldClear) {
       await clearDataRowsBelowHeader();
-      if (typeof clearTab === "function") {
-        await clearTab("round");
-      }
+      await clearRoundRowsBelowHeader();
     }
 
-    // Append to Data-Tour
+    // 2. Write to BOTH tabs simultaneously
     await appendDataRows(tourRows);
-
-    // Append to 'round' tab matrix
-    if (typeof appendRows === "function") {
-      await appendRows("round", roundMatrixRows);
-    } else if (typeof appendDataRows === "function") {
-      await appendDataRows(roundMatrixRows, "round");
-    }
+    await appendRoundRows(roundMatrixRows);
 
     return res.status(200).json({
       success: true,
@@ -218,8 +127,6 @@ export default async function handler(req, res) {
       rowsWritten: tourRows.length
     });
   } catch (error) {
-    return res.status(500).json({
-      error: error.message || "Unable to create active round."
-    });
+    return res.status(500).json({ error: error.message || "Unable to create active round." });
   }
 }
