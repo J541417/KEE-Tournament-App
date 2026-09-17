@@ -2,103 +2,114 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-  <title>Kee Golf League Admin</title>
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tournament Admin - Kee App</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <main class="page-shell">
-    <section class="card admin-card">
-      <div class="header">
-        <div>
-          <p class="eyebrow">Kee Golf League</p>
-          <h1>Admin Panel</h1>
+  <div class="container">
+    <div class="header">
+      <h1>Tournament Admin Panel</h1>
+      <span class="badge" id="adminStatusBadge">Locked</span>
+    </div>
+
+    <!-- SIMPLE LOGIN BOX -->
+    <div id="loginBox" class="login-box">
+      <h2>Admin Access</h2>
+      <input type="password" id="adminPassword" placeholder="Enter Admin Password" />
+      <button id="doLoginButton" class="btn-primary">Log In</button>
+    </div>
+
+    <div id="message" class="message hidden"></div>
+
+    <!-- MAIN ADMIN PANEL (Hidden until login) -->
+    <div id="adminPanel" class="hidden">
+      
+      <!-- CURRENT ROUND DASHBOARD -->
+      <section class="round-panel dashboard-panel hidden" id="currentRoundPanel">
+        <div class="dashboard-header">
+          <h2>Active Tournament Status</h2>
+          <span class="pulse-indicator">LIVE</span>
         </div>
-
-        <div class="badge" id="adminStatusBadge">Locked</div>
-      </div>
-
-      <div id="loginBox" class="lookup-form">
-        <label for="adminPassword">Admin Password</label>
-
-        <div class="input-row">
-          <input
-            id="adminPassword"
-            type="password"
-            placeholder="Enter password..."
-          />
-
-          <button id="doLoginButton" type="button">Log In</button>
+        <div class="dashboard-stats">
+          <div class="stat-box">
+            <span class="stat-label">Round Date</span>
+            <span class="stat-value" id="displayRoundDate">--</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">Course</span>
+            <span class="stat-value" id="displayCourse">--</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">Format</span>
+            <span class="stat-value" id="displayFormat">--</span>
+          </div>
         </div>
-      </div>
-
-      <section id="adminPanel" class="hidden">
-        
-        <section id="currentRoundPanel" class="round-panel hidden" style="border: 2px solid var(--primary); margin-bottom: 2rem;">
-          <h2>⛳ Current Active Round</h2>
-          <div style="margin: 1.5rem 0; font-size: 1.1rem; line-height: 1.8;">
-            <div><strong>Date:</strong> <span id="displayRoundDate">Loading...</span></div>
-            <div><strong>Course:</strong> <span id="displayCourse">Loading...</span></div>
-            <div><strong>Format:</strong> <span id="displayFormat">Loading...</span></div>
-          </div>
-          <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-            <button onclick="goToScorecard()" class="nav-button" type="button">Go to Scorecard</button>
-            <button id="deleteRoundBtn" type="button" style="background: var(--danger-bg); color: var(--danger-text); border: none;">Delete Round</button>
-          </div>
-        </section>
-
-        <section class="round-panel">
-          <h2>Create / Replace Active Round</h2>
-
-          <div class="admin-grid">
-            <label>
-              Round Date
-              <input id="roundDate" type="date" required />
-            </label>
-
-            <label>
-              Course
-              <select id="courseSelect" required>
-                <option value="">Loading courses...</option>
-              </select>
-            </label>
-
-            <label>
-              Scoring Mode
-              <select id="scoringMode" required>
-                <option value="team">Team scoring</option>
-                <option value="individual">Individual scoring</option>
-              </select>
-            </label>
-
-            <label>
-              Number of Teams
-              <input id="teamCount" type="number" min="1" max="20" value="2" required />
-            </label>
-          </div>
-
-          <button id="buildTeamsButton" type="button">
-            Build Team Boxes
-          </button>
-        </section>
-
-        <section id="teamsContainer" class="teams-container hidden"></section>
-
-        <button id="saveRoundButton" type="button" class="hidden">
-          Set Active Round
-        </button>
-
-        <p class="muted">
-          Setting a new round will overwrite the active round and wipe existing temporary data from the data tab.
-        </p>
+        <div class="dashboard-actions">
+          <button class="btn-danger" id="deleteRoundBtn">End Active Round (Wipe Data)</button>
+        </div>
       </section>
 
-      <section id="message" class="message hidden"></section>
-    </section>
-  </main>
+      <!-- ROUND BUILDER -->
+      <section class="round-panel">
+        <h2>Build a Tournament Round</h2>
+        <div class="builder-grid">
+          
+          <!-- NEW: Tournament Name -->
+          <div class="input-group">
+            <label>Tournament Name</label>
+            <input type="text" id="tournamentName" placeholder="e.g., Kee Fall Classic" />
+          </div>
 
-  <script src="admin.js?v=10"></script>
+          <!-- NEW: Round Number Dropdown -->
+          <div class="input-group">
+            <label>Round Number</label>
+            <select id="roundNumber">
+              <option value="1">Round 1 (Clears old data)</option>
+              <option value="2">Round 2 (Adds to Matrix)</option>
+              <option value="3">Round 3 (Adds to Matrix)</option>
+              <option value="4">Round 4 (Adds to Matrix)</option>
+              <option value="5">Round 5 (Adds to Matrix)</option>
+              <option value="6">Round 6 (Adds to Matrix)</option>
+              <option value="7">Round 7 (Adds to Matrix)</option>
+              <option value="8">Round 8 (Adds to Matrix)</option>
+              <option value="9">Round 9 (Adds to Matrix)</option>
+              <option value="10">Round 10 (Adds to Matrix)</option>
+            </select>
+          </div>
+
+          <div class="input-group">
+            <label>Round Date</label>
+            <input type="date" id="roundDate" />
+          </div>
+          <div class="input-group">
+            <label>Course</label>
+            <select id="courseSelect">
+              <option value="">Loading courses...</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label>Scoring Mode</label>
+            <select id="scoringMode">
+              <option value="team">Team Scoring</option>
+              <option value="individual">Individual Scoring</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label>Number of Teams</label>
+            <input type="number" id="teamCount" min="1" max="10" value="2" />
+          </div>
+        </div>
+        <button class="btn-secondary mt-15" id="buildTeamsButton">Configure Teams</button>
+      </section>
+
+      <!-- TEAM ASSIGNMENT -->
+      <div id="teamsContainer" class="hidden"></div>
+
+      <button class="btn-primary mt-15 hidden" id="saveRoundButton">Set Active Round</button>
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
 </body>
 </html>
