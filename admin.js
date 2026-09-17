@@ -9,19 +9,19 @@ const elements = {};
 
 document.addEventListener("DOMContentLoaded", () => {
   elements.adminStatusBadge = document.getElementById("adminStatusBadge");
-  
-  // ⭐ Hooking up the simple login box and button instead of the old form
   elements.loginBox = document.getElementById("loginBox");
   elements.doLoginButton = document.getElementById("doLoginButton");
-  
   elements.adminPassword = document.getElementById("adminPassword");
   elements.adminPanel = document.getElementById("adminPanel");
-  
   elements.currentRoundPanel = document.getElementById("currentRoundPanel");
   elements.displayRoundDate = document.getElementById("displayRoundDate");
   elements.displayCourse = document.getElementById("displayCourse");
   elements.displayFormat = document.getElementById("displayFormat");
   elements.deleteRoundBtn = document.getElementById("deleteRoundBtn");
+
+  // New Tournament Fields
+  elements.tournamentName = document.getElementById("tournamentName");
+  elements.roundNumber = document.getElementById("roundNumber");
 
   elements.roundDate = document.getElementById("roundDate");
   elements.courseSelect = document.getElementById("courseSelect");
@@ -32,14 +32,9 @@ document.addEventListener("DOMContentLoaded", () => {
   elements.saveRoundButton = document.getElementById("saveRoundButton");
   elements.message = document.getElementById("message");
 
-  // ⭐ Listen for a simple click
   elements.doLoginButton?.addEventListener("click", handleLogin);
-
-  // ⭐ Allow pressing "Enter" in the password box
   elements.adminPassword?.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") {
-      handleLogin(e);
-    }
+    if (e.key === "Enter") handleLogin(e);
   });
 
   elements.buildTeamsButton?.addEventListener("click", buildTeamBoxes);
@@ -74,10 +69,7 @@ async function handleLogin(event) {
     if (!response.ok) throw new Error(data.error || "Login failed.");
 
     adminState.password = password;
-
     if (elements.adminStatusBadge) elements.adminStatusBadge.textContent = "Unlocked";
-    
-    // Hide the new login box
     if (elements.loginBox) elements.loginBox.classList.add("hidden");
     if (elements.adminPanel) elements.adminPanel.classList.remove("hidden");
 
@@ -112,7 +104,6 @@ async function loadAdminData() {
     adminState.courses = coursesData.courses || [];
     populateCourses();
 
-    // ⭐ AUTO-FILL TODAY'S DATE (Local Timezone Safe)
     const today = new Date();
     const yyyy = today.getFullYear();
     const mm = String(today.getMonth() + 1).padStart(2, '0');
@@ -138,7 +129,6 @@ async function loadAdminData() {
 
         if (activeData.teams && activeData.teams.length > 0) {
           if (elements.teamCount) elements.teamCount.value = activeData.teams.length;
-          
           buildTeamBoxes(); 
 
           activeData.teams.forEach((team, teamIndex) => {
@@ -313,6 +303,9 @@ function updatePlayerAvailability() {
 
 async function saveActiveRound() {
   clearMessage();
+  
+  const tournamentName = elements.tournamentName?.value || "";
+  const roundNumber = elements.roundNumber?.value || "1";
   const roundDate = elements.roundDate?.value;
   const courseName = elements.courseSelect?.value;
   const scoringMode = elements.scoringMode?.value;
@@ -335,6 +328,8 @@ async function saveActiveRound() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         password: adminState.password,
+        tournamentName, // ⭐ Sending the new Tournament Name
+        roundNumber,    // ⭐ Sending the new Round Number
         roundDate,
         courseName,
         scoringMode,
@@ -348,7 +343,9 @@ async function saveActiveRound() {
     if (data.token) adminState.activeToken = data.token;
     
     await loadAdminData(); 
-    showSuccess(`Active round saved. ${data.rowsWritten} rows written.`);
+    
+    // ⭐ Displays the actual message from our backend!
+    showSuccess(data.rowsWritten || "Round successfully saved!");
   } catch (error) {
     showMessage(error.message || "Unable to create active round.");
   } finally {
@@ -414,28 +411,3 @@ function clearMessage() {
   elements.message.textContent = "";
   elements.message.classList.add("hidden");
 }
-
-async function goToScorecard() {
-  if (adminState.activeToken) {
-    window.location.href = `scorecard.html?token=${encodeURIComponent(adminState.activeToken)}`;
-    return;
-  }
-  try {
-    const response = await fetch(`/api/active-round?t=${Date.now()}`); 
-    if (response.ok) {
-      const data = await response.json();
-      if (data.active && data.token) {
-        adminState.activeToken = data.token;
-        window.location.href = `scorecard.html?token=${encodeURIComponent(data.token)}`;
-        return; 
-      }
-    }
-  } catch (err) {
-    console.error("Could not fetch the active token:", err);
-  }
-  const manualToken = prompt("Could not find active token. Please paste an active 'scorecard_token':");
-  if (manualToken) {
-    window.location.href = `scorecard.html?token=${encodeURIComponent(manualToken.trim())}`;
-  }
-}
-// END OF FILE
