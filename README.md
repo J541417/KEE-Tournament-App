@@ -1,2 +1,2 @@
-# kee-golf-league
+# kee-tournament-app
 Golf Tournament App
