@@ -1,2 +1,2 @@
 # kee-golf-league
-Gold League App
+Golf Tournament App
